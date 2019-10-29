@@ -1,14 +1,18 @@
-#include<iostream>
-#include "Element.h"
-#include "Material.h"
-//#include ".h"
+#include "Solid.h"
 
 int main()
 {
+    Solid *problem = new Solid;
 
-// Truss* Ex = new Truss;
+    problem->setAnalysisParameters("EPT", "T6", 12); //("EPD or EPT", "T3, T6 or T10", 7 or 12)
+    //problem->setDynamicAnalysisParameters(0.0001, 0.25, 0.5);
 
-// Ex->readInput("Exemplo.txt","Static"); //Static or Dynamic
+    problem->readAnsysInput("cplusplus.txt");
+    
+    problem->solveStaticProblem(1, 25, 1.0e-6);
+    //solveDynamicProblem(mesmo do estático)
 
-return 0;
+
+
+    return 0;
 }

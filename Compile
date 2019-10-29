@@ -1,1 +1,1 @@
-g++ Element.cpp Main.cpp Material.cpp Node.cpp -o s -llapack
+g++ DirichletCondition.cpp Element.cpp Main.cpp Material.cpp NeumannCondition.cpp Node.cpp Solid.cpp -o s -llapack

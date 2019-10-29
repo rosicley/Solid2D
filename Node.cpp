@@ -9,10 +9,13 @@ Node::Node(const int &index,
     initialCoordinate_ = initialCoordinate;
     pastCoordinate_ = initialCoordinate;
     currentCoordinate_ = initialCoordinate;
-    pastVelocity_ = 0.0;
-    pastAcceleration_ = 0.0;
-    currentVelocity_ = 0.0;
-    currentAcceleration_ = 0.0;
+    for (size_t i = 0; i < 2; i++)
+    {
+        currentVelocity_(i) = 0.0;
+        currentAcceleration_(i) = 0.0;
+        pastVelocity_(i) = 0.0;
+        pastAcceleration_(i) = 0.0;
+    }
 }
 
 Node::~Node() {}

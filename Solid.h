@@ -6,11 +6,13 @@
 #include "Node.h"
 #include "Element.h"
 #include "Material.h"
+#include "DirichletCondition.h"
+#include "NeumannCondition.h"
 #include <boost/numeric/ublas/matrix.hpp>
 #include <boost/numeric/ublas/vector.hpp>
 #include <boost/numeric/ublas/io.hpp>
+//#include <boost/numeric/bindings/lapack/driver/posv.hpp>
 #include <boost/numeric/bindings/lapack/driver/gesv.hpp>
-#include <boost/numeric/bindings/lapack/driver/ggev.hpp>
 #include <boost/numeric/bindings/lapack/computational/getrf.hpp>
 #include <boost/numeric/bindings/lapack/computational/getri.hpp>
 #include <boost/numeric/bindings/ublas/matrix.hpp>
@@ -19,56 +21,56 @@
 
 using namespace boost::numeric::ublas;
 
-class Truss
+class Solid
 {
 public:
-    std::vector<Node *> getNodes();
+    // Solid();
 
-    std::vector<Element *> getElements();
-
-    std::vector<Material *> getMaterial();
-
-    vector<double> InternalForces();
-
-    vector<double> TemperatureForces(const int &numberOfSteps, const int &currentStep);
-
-    vector<double> InertialForces(const double &beta, const double &gamma, const double &deltat);
-
-    vector<double> ExternalForces();
-
-    vector<int> BoundaryCondition();
-
-    matrix<double> Hessian();
-
-    matrix<double> TemperatureHessian(const int &numberOfSteps, const int &currentStep);
-
-    matrix<double> MassMatrix();
-
-    int solveStaticProblem(const int &numberOfSteps, const double &tolerance);
-
-    int solveDynamicProblem(const int &numberOfTimes, const double &tolerance);
-
-    void exportToParaview(const int &loadstep);
-
-    void DisplacementVesursLoad(const double &force);
-
-    void addNode(const int &index,
-                 const std::vector<double> &initialCoordinate);
-
-    void addElement(const int &index,
-                    const std::vector<int> &connection,
-                    const int &material,
-                    const double &area);
+    // ~Solid();
 
     void addMaterial(const int &index,
                      const double &young,
-                     const double &plastStrain,
-                     const double &hardeningModulus,
-                     const double &density,
-                     const double &expansionCoef);
+                     const double &poisson,
+                     const double &density);
 
-    void readInput(const std::string &read,
-                   const std::string &typeAnalyze);
+    void addNode(const int &index,
+                 const bounded_vector<double, 2> &initialCoordinate);
+
+    void addElement(const int &index,
+                    const std::vector<int> &nodesIndex,
+                    const int &materialIndex,
+                    const double &thickness,
+                    const std::string &elementType);
+
+    void addDirichletCondition(const int &index,
+                               const int &direction,
+                               const double &value);
+
+    void addNeumannCondition(const int &index,
+                             const int &direction,
+                             const double &value);
+
+    void setAnalysisParameters(const std::string &planeState, const std::string &elementType, const int &numberOfHammer);
+
+    void setDynamicAnalysisParameters(const double &deltat, const double &beta, const double &gama);
+
+    std::pair<vector<double>, matrix<double, column_major>> globalSolid(const std::string &typeAnalyze, const int &step, const int &numberOfStep);
+
+    // std::vector<Node *> getNodes();
+
+    // std::vector<Element *> getElements();
+
+    // std::vector<Material *> getMaterial();
+
+    vector<double> ExternalForces();
+
+    int solveStaticProblem(const int &numberOfSteps, const int &maximumOfInteration,const double &tolerance);
+
+    //int solveDynamicProblem(const int &numberOfTimes, const double &tolerance);
+
+    void exportToParaview(const int &loadstep);
+
+    void readAnsysInput(const std::string &read);
 
 private:
     std::vector<Node *> nodes_;
@@ -77,13 +79,31 @@ private:
 
     std::vector<Material *> materials_;
 
-    std::vector<int> boundaryConditions_;
+    std::vector<DirichletCondition *> dirichletConditions_;
 
-    std::vector<double> externalForces_;
+    std::vector<NeumannCondition *> neumannConditions_;
 
-    // int numberOfSteps_;
+    int numberOfSteps_;
 
-    // double tolerance_;
+    double tolerance_;
 
-    std::string name_;
+    //std::string name_;
+
+    std::string elementType_;
+
+    std::string planeState_;
+
+    double deltat_=1.0; 
+    
+    double gamma_=0.5;
+    
+    double beta_=0.25;
+
+    std::vector<double> shapeForces_;
+    
+    int numberOfHammer_;
+
+    int order_;
+
+
 };
