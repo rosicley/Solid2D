@@ -48,6 +48,8 @@ public:
 
     void setAnalysisParameters(const double &numberOfDomainIntegrationPoints, const double &deltat, const double &beta, const double &gamma);
 
+    void StressCalculate(const std::string &ep);
+
     // std::vector<double> InternalForce();
 
     // bounded_matrix<double, 6, 6> localHessian();

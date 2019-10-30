@@ -12,6 +12,7 @@ Element::Element(const int &index,
     connection_ = connection;
     material_ = material;
     thickness_ = thickness;
+    elementType_ = elementType;
     //shapeForce_ = 0.0;
 
     if (elementType == "T3")
@@ -365,8 +366,8 @@ std::pair<vector<double>, matrix<double>> Element::elementContributions(const st
         {
             S(0, 0) = (young / (1.0 - poisson * poisson)) * (Ec(0, 0) + poisson * Ec(1, 1));
             S(1, 1) = (young / (1.0 - poisson * poisson)) * (Ec(1, 1) + poisson * Ec(0, 0));
-            S(1, 0) = 2.0 * (young / (2.0 * (1.0 + poisson))) * Ec(1, 0);
-            S(0, 1) = 2.0 * (young / (2.0 * (1.0 + poisson))) * Ec(0, 1);
+            S(1, 0) = (young / (1.0 + poisson)) * Ec(1, 0);
+            S(0, 1) = (young / (1.0 + poisson)) * Ec(0, 1);
         }
 
         bounded_matrix<double, 2, 2> dA_dy;
@@ -484,4 +485,157 @@ std::pair<vector<double>, matrix<double>> Element::elementContributions(const st
         }
     }
     return std::make_pair(rhs, tangent);
+}
+
+void Element::StressCalculate(const std::string &ep)
+{
+    if (elementType_ == "T6")
+    {
+        for (int i = 0; i < 6; i++)
+        {
+            bounded_matrix<double, 6, 2> xsi;
+            xsi(0, 0) = 1.0;
+            xsi(0, 1) = 0.0;
+
+            xsi(1, 0) = 0.0;
+            xsi(1, 1) = 1.0;
+
+            xsi(2, 0) = 0.0;
+            xsi(2, 1) = 0.0;
+
+            xsi(3, 0) = 0.5;
+            xsi(3, 1) = 0.5;
+
+            xsi(4, 0) = 0.0;
+            xsi(4, 1) = 0.5;
+
+            xsi(5, 0) = 0.5;
+            xsi(5, 1) = 0.0;
+
+            bounded_matrix<double, 2, 2> A0 = referenceJacobianMatrix(xsi(i, 0), xsi(i, 1)); //initial configuration map
+            double j0 = jacobianDeterminant(A0);
+            bounded_matrix<double, 2, 2> A0I; //inverse initial configuration map
+            A0I(0, 0) = A0(1, 1) / j0;
+            A0I(1, 1) = A0(0, 0) / j0;
+            A0I(0, 1) = -A0(0, 1) / j0;
+            A0I(1, 0) = -A0(1, 0) / j0;
+            bounded_matrix<double, 2, 2> A1 = currentJacobianMatrix(xsi(i, 0), xsi(i, 1));
+            bounded_matrix<double, 2, 2> Ac = prod(A1, A0I);                   //current deformation gradient
+            identity_matrix<double> I(2);                                      //identity matrix
+            bounded_matrix<double, 2, 2> Ec = 0.5 * (prod(trans(Ac), Ac) - I); //current green strain tensor
+            bounded_matrix<double, 2, 2> S;                                    //second piola kirchhoff stress tensor
+            double young = material_->getYoung();
+            double poisson = material_->getPoisson();
+
+            if (ep == "EPD")
+            {
+                S(0, 0) = (young / ((1.0 + poisson) * (1.0 - 2.0 * poisson))) * ((1.0 - poisson) * Ec(0, 0) + poisson * Ec(1, 1));
+                S(1, 1) = (young / ((1.0 + poisson) * (1.0 - 2.0 * poisson))) * ((1.0 - poisson) * Ec(1, 1) + poisson * Ec(0, 0));
+                S(1, 0) = (young / (1.0 + poisson)) * Ec(1, 0);
+                S(0, 1) = (young / (1.0 + poisson)) * Ec(0, 1);
+            }
+            else
+            {
+                S(0, 0) = (young / (1.0 - poisson * poisson)) * (Ec(0, 0) + poisson * Ec(1, 1));
+                S(1, 1) = (young / (1.0 - poisson * poisson)) * (Ec(1, 1) + poisson * Ec(0, 0));
+                S(1, 0) = (young / (1.0 + poisson)) * Ec(1, 0);
+                S(0, 1) = (young / (1.0 + poisson)) * Ec(0, 1);
+            }
+
+            bounded_matrix<double, 2, 2> sigma;
+            double jac = jacobianDeterminant(Ac);
+            bounded_matrix<double, 2, 2> mat1;
+            mat1 = prod(Ac, S);
+            sigma = (1.0 / jac) * prod(mat1, trans(Ac));
+
+            bounded_vector<double, 3> cauchy;
+
+            cauchy(0) = sigma(0, 0);
+            cauchy(1) = sigma(1, 1);
+            cauchy(2) = sigma(0, 1);
+
+            getConnection()[i]->setStressState(cauchy);
+        }
+    }
+
+    else if (elementType_ == "T10")
+    {
+        for (int i = 0; i < 10; i++)
+        {
+            bounded_matrix<double, 10, 2> xsi;
+            xsi(0, 0) = 1.0;
+            xsi(0, 1) = 0.0;
+
+            xsi(1, 0) = 0.0;
+            xsi(1, 1) = 1.0;
+
+            xsi(2, 0) = 0.0;
+            xsi(2, 1) = 0.0;
+
+            xsi(3, 0) = 2.0 / 3.0;
+            xsi(3, 1) = 1.0 / 3.0;
+
+            xsi(4, 0) = 1.0 / 3.0;
+            xsi(4, 1) = 2.0 / 3.0;
+
+            xsi(5, 0) = 0.0;
+            xsi(5, 1) = 2.0 / 3.0;
+
+            xsi(6, 0) = 0.0;
+            xsi(6, 1) = 1.0 / 3.0;
+
+            xsi(7, 0) = 1.0 / 3.0;
+            xsi(7, 1) = 0.0;
+
+            xsi(8, 0) = 2.0 / 3.0;
+            xsi(8, 1) = 0.0;
+
+            xsi(9, 0) = 1.0 / 3.0;
+            xsi(9, 1) = 1.0 / 3.0;
+
+            bounded_matrix<double, 2, 2> A0 = referenceJacobianMatrix(xsi(i, 0), xsi(i, 1)); //initial configuration map
+            double j0 = jacobianDeterminant(A0);
+            bounded_matrix<double, 2, 2> A0I; //inverse initial configuration map
+            A0I(0, 0) = A0(1, 1) / j0;
+            A0I(1, 1) = A0(0, 0) / j0;
+            A0I(0, 1) = -A0(0, 1) / j0;
+            A0I(1, 0) = -A0(1, 0) / j0;
+            bounded_matrix<double, 2, 2> A1 = currentJacobianMatrix(xsi(i, 0), xsi(i, 1));
+            bounded_matrix<double, 2, 2> Ac = prod(A1, A0I);                   //current deformation gradient
+            identity_matrix<double> I(2);                                      //identity matrix
+            bounded_matrix<double, 2, 2> Ec = 0.5 * (prod(trans(Ac), Ac) - I); //current green strain tensor
+            bounded_matrix<double, 2, 2> S;                                    //second piola kirchhoff stress tensor
+            double young = material_->getYoung();
+            double poisson = material_->getPoisson();
+
+            if (ep == "EPD")
+            {
+                S(0, 0) = (young / ((1.0 + poisson) * (1.0 - 2.0 * poisson))) * ((1.0 - poisson) * Ec(0, 0) + poisson * Ec(1, 1));
+                S(1, 1) = (young / ((1.0 + poisson) * (1.0 - 2.0 * poisson))) * ((1.0 - poisson) * Ec(1, 1) + poisson * Ec(0, 0));
+                S(1, 0) = (young / (1.0 + poisson)) * Ec(1, 0);
+                S(0, 1) = (young / (1.0 + poisson)) * Ec(0, 1);
+            }
+            else
+            {
+                S(0, 0) = (young / (1.0 - poisson * poisson)) * (Ec(0, 0) + poisson * Ec(1, 1));
+                S(1, 1) = (young / (1.0 - poisson * poisson)) * (Ec(1, 1) + poisson * Ec(0, 0));
+                S(1, 0) = (young / (1.0 + poisson)) * Ec(1, 0);
+                S(0, 1) = (young / (1.0 + poisson)) * Ec(0, 1);
+            }
+
+            bounded_matrix<double, 2, 2> sigma;
+            double jac = jacobianDeterminant(Ac);
+            bounded_matrix<double, 2, 2> mat1;
+            mat1 = prod(Ac, S);
+            sigma = (1.0 / jac) * prod(mat1, trans(Ac));
+
+            bounded_vector<double, 3> cauchy;
+
+            cauchy(0) = sigma(0, 0);
+            cauchy(1) = sigma(1, 1);
+            cauchy(2) = sigma(0, 1);
+
+            getConnection()[i]->setStressState(cauchy);
+        }
+    }
 }

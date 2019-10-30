@@ -201,8 +201,6 @@ int Solid::solveStaticProblem(const int &numberOfSteps, const int &maximumOfInte
             vector<int> c(2 * nodes_.size(), 0.0);
             boost::numeric::bindings::lapack::gesv(variationOfPI.second, c, variationOfPI.first);
 
-            //boost::numeric::bindings::lapack::posv(variationOfPI.second, variationOfPI.first);
-
             for (int ih = 0; ih < nodes_.size(); ih++) //loop para atualizar as coordenadas dos nós
             {
                 int index = nodes_[ih]->getIndex();
@@ -222,6 +220,15 @@ int Solid::solveStaticProblem(const int &numberOfSteps, const int &maximumOfInte
 
             if (error <= tolerance)
                 break;
+        }
+
+        for (Node *n : nodes_)
+        {
+            n->setZeroStressState();
+        }
+        for (int i = 0; i < elements_.size(); i++)
+        {
+            elements_[i]->StressCalculate(planeState_);
         }
         exportToParaview(loadStep);
     }
@@ -310,10 +317,10 @@ void Solid::exportToParaview(const int &loadstep)
     //nodal results
     file << "    <PointData>"
          << "\n";
+
     file << "      <DataArray type=\"Float64\" NumberOfComponents=\"2\" "
          << "Name=\"Displacement\" format=\"ascii\">"
          << "\n";
-
     for (Node *n : nodes_)
     {
         bounded_vector<double, 2> initial = n->getInitialCoordinate();
@@ -321,21 +328,12 @@ void Solid::exportToParaview(const int &loadstep)
 
         file << current(0) - initial(0) << " " << current(1) - initial(1) << "\n";
     }
-    // for (int i=0; i<nodes_.size(); i++)
-    // {
-    //     file << nodes_[i]->getCurrentCoordinate()(0) - nodes_[i]->getInitialCoordinate()(0) << " "
-    //          << nodes_[i]->getCurrentCoordinate()(1) - nodes_[i]->getInitialCoordinate()(1) << "\n";
-    // }
-    // {
-    //     file << n->getCurrentCoordinate()(0) - n->getInitialCoordinate()(0) << " "
-    //          << n->getCurrentCoordinate()(1) - n->getInitialCoordinate()(1) << "\n";
-    // }
     file << "      </DataArray> "
          << "\n";
+
     file << "      <DataArray type=\"Float64\" NumberOfComponents=\"2\" "
          << "Name=\"Velocity\" format=\"ascii\">"
          << "\n";
-
     for (Node *n : nodes_)
     {
         bounded_vector<double, 2> currentVelocity = n->getCurrentVelocity();
@@ -343,16 +341,42 @@ void Solid::exportToParaview(const int &loadstep)
     }
     file << "      </DataArray> "
          << "\n";
+
     file << "      <DataArray type=\"Float64\" NumberOfComponents=\"2\" "
          << "Name=\"Acceleration\" format=\"ascii\">"
          << "\n";
-
     for (Node *n : nodes_)
     {
         file << n->getCurrentAcceleration()(0) << " " << n->getCurrentAcceleration()(1) << "\n";
     }
     file << "      </DataArray> "
          << "\n";
+
+    file << "      <DataArray type=\"Float64\" NumberOfComponents=\"2\" "
+         << "Name=\"CauchyNormalStress\" format=\"ascii\">"
+         << "\n";
+    for (Node *n : nodes_)
+    {
+        double cont = n->getStressState()(3);
+        double aux1 = n->getStressState()(0);
+        double aux2 = n->getStressState()(1);
+        file << aux1 / cont << " " << aux2 / cont << "\n";
+    }
+    file << "      </DataArray> "
+         << "\n";
+
+    file << "      <DataArray type=\"Float64\" NumberOfComponents=\"1\" "
+         << "Name=\"CauchyShearStress\" format=\"ascii\">"
+         << "\n";
+    for (Node *n : nodes_)
+    {
+        double cont = n->getStressState()(3);
+        double aux3 = n->getStressState()(2);
+        file << aux3 / cont << "\n";
+    }
+    file << "      </DataArray> "
+         << "\n";
+
     file << "    </PointData>"
          << "\n";
     //elemental results
