@@ -2,18 +2,19 @@
 #include <iostream>
 #include <boost/numeric/ublas/vector.hpp>
 #include <vector>
+//#include "../Element.h"
 
 using namespace boost::numeric::ublas;
 
-class Node
+class FiberNode
 {
 public:
-	Node();
+	FiberNode();
 
-	Node(const int &index,
-		 const bounded_vector<double, 2> &initialCoordinate); //(nº do nó, {x1, x2,x3})
+	FiberNode(const int &index,
+			  const bounded_vector<double, 2> &initialCoordinate); //(nº do nó, {x1, x2})
 
-	~Node();
+	~FiberNode();
 
 	int getIndex();
 
@@ -31,7 +32,11 @@ public:
 
 	bounded_vector<double, 2> getCurrentAcceleration();
 
-	bounded_vector<double, 4> getStressState();
+	bounded_vector<double, 2> getDimensionlessCoordinates();
+
+	int getIndexSolidElement();
+
+	double getNormalForce();
 
 	void setPastCoordinate(const bounded_vector<double, 2> &pastCoordinate);
 
@@ -45,9 +50,10 @@ public:
 
 	void setCurrentAcceleration(const bounded_vector<double, 2> &currentAcceleration);
 
-	void setStressState(const bounded_vector<double, 3> &stressState);
+	void setIncidenceInSolid(const int &indexElement, const bounded_vector<double, 2> &incidence);
 
-	void setZeroStressState();
+	void setNormalForce(const double &force);
+
 
 private:
 	int index_;
@@ -66,5 +72,9 @@ private:
 
 	bounded_vector<double, 2> currentAcceleration_;
 
-	bounded_vector<double, 4> stressState_; //{SigmaX1, SigmaX2, TalX1X2, contador}
+	double normalForce_;
+
+	int indexElement_;
+
+	bounded_vector<double, 2> incidence_; // xsi1, xsi2
 };

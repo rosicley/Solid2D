@@ -50,13 +50,9 @@ Material *Element::getMaterial()
     return material_;
 }
 
-void Element::setShapeForce(const std::vector<double> &shapeForce)
+void Element::setShapeForce(const bounded_vector<double, 2> &shapeForce)
 {
-    bounded_vector<double, 2> shapeee;
-    shapeee(0) = shapeForce[0];
-    shapeee(1) = shapeForce[1];
-
-    shapeForce_ = shapeee;
+    shapeForce_ = shapeForce;
 }
 
 void Element::setAnalysisParameters(const double &numberOfDomainIntegrationPoints, const double &deltat, const double &beta, const double &gamma)
@@ -402,13 +398,13 @@ std::pair<vector<double>, matrix<double>> Element::elementContributions(const st
                 double accel = 0.0;
                 double shape = 0.0;
 
-                shape = phi(i) * shape;
+                //shape = phi(i) * shape;
 
                 if (typeAnalyze == "STATIC")
                 {
                     for (int m = 0; m < connection_.size(); m++)
                     {
-                        shape += phi(m) * (1.0 * shapeForce_(j) * step / (1.0 * numberOfStep));
+                        shape += phi(m); //* (1.0 * shapeForce_(j) * step / (1.0 * numberOfStep));
                     }
                 }
                 else
@@ -422,7 +418,7 @@ std::pair<vector<double>, matrix<double>> Element::elementContributions(const st
 
                 double m = density * phi(i) * accel; //inertial force
 
-                shape = phi(i) * shape;
+                shape = (shape * shapeForce_(j) * step / numberOfStep / thickness_) * phi(i);
 
                 // // bounded_vector<double, 2> b;
                 // // b(0) = 0.0;

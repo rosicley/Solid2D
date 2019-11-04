@@ -4,6 +4,7 @@
 #include <string>
 #include "Node.h"
 #include "Material.h"
+#include "Fiber/FiberElement.h"
 #include <math.h>
 #include <boost/numeric/ublas/matrix.hpp>
 #include <boost/numeric/ublas/vector.hpp>
@@ -44,7 +45,7 @@ public:
 
     std::pair<vector<double>, matrix<double>> elementContributions(const std::string &ep, const std::string &typeAnalyze, const int &step, const int &numberOfStep);
 
-    void setShapeForce(const std::vector<double> &shapeForce);
+    void setShapeForce(const bounded_vector<double, 2> &shapeForce);
 
     void setAnalysisParameters(const double &numberOfDomainIntegrationPoints, const double &deltat, const double &beta, const double &gamma);
 
