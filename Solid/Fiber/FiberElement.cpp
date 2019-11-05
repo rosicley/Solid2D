@@ -26,7 +26,7 @@ std::vector<FiberNode *> FiberElement::getConnection()
     return connection_;
 }
 
-std::pair<vector<double>, matrix<double>> FiberElement::fiberContributions(const std::string &typeAnalyze, const double &deltat, const double &beta)
+std::pair<vector<double>, matrix<double>> FiberElement::fiberLocalContributions(const std::string &typeAnalyze, const double &deltat, const double &beta)
 {
     vector<double> first(4, 0.0);
     matrix<double> second(4, 4, 0.0);

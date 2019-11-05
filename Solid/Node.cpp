@@ -113,3 +113,8 @@ void Node::setZeroStressState()
     stressState_(2) = 0.0;
     stressState_(3) = 0.0;
 }
+
+void Node::incrementCurrentCoordinate(const int& direction, const double& value)
+{
+    currentCoordinate_(direction) += value;
+}

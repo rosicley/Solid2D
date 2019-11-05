@@ -24,7 +24,7 @@ public:
 
     std::vector<FiberNode *> getConnection();
 
-    std::pair<vector<double>, matrix<double>> fiberContributions(const std::string &typeAnalyze, const double &deltat, const double &beta);
+    std::pair<vector<double>, matrix<double>> fiberLocalContributions(const std::string &typeAnalyze, const double &deltat, const double &beta);
 
     void updateNormalForce();
 

@@ -13,12 +13,14 @@
 #include <boost/numeric/ublas/vector.hpp>
 #include <boost/numeric/ublas/io.hpp>
 //#include <boost/numeric/bindings/lapack/driver/posv.hpp>
-#include <boost/numeric/bindings/lapack/driver/gesv.hpp>
-#include <boost/numeric/bindings/lapack/computational/getrf.hpp>
-#include <boost/numeric/bindings/lapack/computational/getri.hpp>
-#include <boost/numeric/bindings/ublas/matrix.hpp>
-#include <boost/numeric/bindings/ublas/vector.hpp>
-#include <boost/numeric/bindings/lapack/workspace.hpp>
+// #include <boost/numeric/bindings/lapack/driver/gesv.hpp>
+// #include <boost/numeric/bindings/lapack/computational/getrf.hpp>
+// #include <boost/numeric/bindings/lapack/computational/getri.hpp>
+// #include <boost/numeric/bindings/ublas/matrix.hpp>
+// #include <boost/numeric/bindings/ublas/vector.hpp>
+// #include <boost/numeric/bindings/lapack/workspace.hpp>
+#include <metis.h>
+#include <petscksp.h>
 
 using namespace boost::numeric::ublas;
 
@@ -71,7 +73,8 @@ public:
 
     vector<double> domainShapeFunction(const double &xsi1, const double &xsi2);
 
-    std::pair<vector<double>, matrix<double, column_major>> globalSolid(const std::string &typeAnalyze, const int &step, const int &numberOfStep);
+    std::pair<vector<double>, matrix<double, column_major>> fiberContribution(const std::string &typeAnalyze, FiberElement *fib);
+
 
     // std::vector<Node *> getNodes();
 
@@ -81,7 +84,7 @@ public:
 
     vector<double> ExternalForces();
 
-    int solveStaticProblem(const int &numberOfSteps, const int &maximumOfInteration, const double &tolerance);
+    int solveStaticProblem(const int &numberOfSteps, const int &maximumOfIteration, const double &tolerance);
 
     bounded_matrix<double, 2 ,2> inverseMatrix(const bounded_matrix<double, 2, 2> &matrix);
 
@@ -94,6 +97,11 @@ public:
     void readFibersInput(const std::string &read);
 
     void incidenceOfFibers();
+
+    void domainDecompositionMETIS(const std::string& elementType);
+
+    void fibersDecompositionMETIS();
+
 
 private:
     std::vector<Node *> nodes_;
@@ -135,4 +143,12 @@ private:
     int numberOfHammer_;
 
     int order_;
+
+    idx_t* elementPartition_;
+
+	idx_t* nodePartition_;
+
+    idx_t* fiberElementPartition_;
+
+	idx_t* fiberNodePartition_;
 };

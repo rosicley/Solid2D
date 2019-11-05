@@ -49,6 +49,9 @@ public:
 
 	void setZeroStressState();
 
+	void incrementCurrentCoordinate(const int& direction, const double& value);
+
+
 private:
 	int index_;
 
