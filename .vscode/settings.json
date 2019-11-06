@@ -49,7 +49,16 @@
         "thread": "cpp",
         "cfenv": "cpp",
         "cinttypes": "cpp",
-        "typeinfo": "cpp"
+        "typeinfo": "cpp",
+        "*.in": "cpp",
+        "csignal": "cpp",
+        "bitset": "cpp",
+        "list": "cpp",
+        "unordered_set": "cpp",
+        "map": "cpp",
+        "set": "cpp",
+        "iomanip": "cpp",
+        "typeindex": "cpp"
     },
     "C_Cpp.errorSquiggles": "Enabled"
 }

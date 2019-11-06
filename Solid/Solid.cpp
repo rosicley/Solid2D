@@ -174,13 +174,21 @@ int Solid::solveStaticProblem(const int &numberOfSteps, const int &maximumOfIter
 
     MPI_Comm_rank(PETSC_COMM_WORLD, &rank);
 
-    vector<double> externalForces(2 * nodes_.size(), 0.0);
-    externalForces = ExternalForces();
+    // vector<double> externalForces(2 * nodes_.size(), 0.0);
+    // externalForces = ExternalForces();
     int n = (order_ + 1) * (order_ + 2) / 2.0;
 
     if (rank == 0)
     {
         exportToParaview(0);
+    }
+
+    double initialNorm = 0.0;
+    for (Node *node : nodes_)
+    {
+        double x1 = node->getInitialCoordinate()(0);
+        double x2 = node->getInitialCoordinate()(1);
+        initialNorm += x1 * x1 + x2 * x2;
     }
 
     PetscMalloc1(dirichletConditions_.size(), &dof);
@@ -193,11 +201,16 @@ int Solid::solveStaticProblem(const int &numberOfSteps, const int &maximumOfIter
 
     for (int loadStep = 1; loadStep <= numberOfSteps; loadStep++)
     {
+        boost::posix_time::ptime t1 =
+            boost::posix_time::microsec_clock::local_time();
+
         if (rank == 0)
         {
             std::cout << "------------------------- TIME STEP = "
                       << loadStep << " -------------------------\n";
         }
+
+        double norm = 100.0;
 
         for (int iteration = 0; iteration < maximumOfIteration; iteration++) //definir o máximo de interações por passo de carga
         {
@@ -224,19 +237,39 @@ int Solid::solveStaticProblem(const int &numberOfSteps, const int &maximumOfIter
 
             if (rank == 0)
             {
-                externalForces = ((1.0 * loadStep) / (1.0 * numberOfSteps)) * externalForces;
-                for (size_t i = 0; i < nodes_.size(); i++)
+                for (NeumannCondition *con : neumannConditions_)
                 {
-                    if (fabs(externalForces(2 * i)) >= 1.0e-15)
-                    {
-                        int dof = 2 * i;
-                        ierr = VecSetValues(b, 1, &dof, &externalForces(2 * i), ADD_VALUES);
-                    }
-                    if (fabs(externalForces(2 * i + 1)) >= 1.0e-15)
-                    {
-                        int dof = 2 * i + 1;
-                        ierr = VecSetValues(b, 1, &dof, &externalForces(2 * i + 1), ADD_VALUES);
-                    }
+                    int ind = con->getNode()->getIndex();
+                    int dir = con->getDirection();
+                    double val1 = con->getValue() * (1.0 * loadStep / (1.0 * numberOfSteps));
+                    int dof = 2 * ind + dir;
+                    ierr = VecSetValues(b, 1, &dof, &val1, ADD_VALUES);
+                }
+                // externalForces = ((1.0 * loadStep) / (1.0 * numberOfSteps)) * externalForces;
+                // for (size_t i = 0; i < nodes_.size(); i++)
+                // {
+                //     if (fabs(externalForces(2 * i)) >= 1.0e-15)
+                //     {
+                //         int dof = 2 * i;
+                //         ierr = VecSetValues(b, 1, &dof, &externalForces(2 * i), ADD_VALUES);
+                //     }
+                //     if (fabs(externalForces(2 * i + 1)) >= 1.0e-15)
+                //     {
+                //         int dof = 2 * i + 1;
+                //         ierr = VecSetValues(b, 1, &dof, &externalForces(2 * i + 1), ADD_VALUES);
+                //     }
+                // }
+            }
+
+            if (iteration == 0)
+            {
+                for (DirichletCondition *con : dirichletConditions_)
+                {
+                    Node *node = con->getNode();
+                    int dir = con->getDirection();
+                    double val1 = (con->getValue()) / (1.0 * numberOfSteps);
+
+                    node->incrementCurrentCoordinate(dir, val1);
                 }
             }
 
@@ -405,28 +438,6 @@ int Solid::solveStaticProblem(const int &numberOfSteps, const int &maximumOfIter
 
             MatZeroRowsColumns(A, dirichletConditions_.size(), dof, 1.0, x, b);
 
-            if (iteration == 0)
-            {
-                if (rank == 0)
-                {
-                    for (DirichletCondition *cond : dirichletConditions_)
-                    {
-                        int indexNode = cond->getNode()->getIndex();
-                        int direction = cond->getDirection();
-                        double value = cond->getValue();
-
-                        int dof = 2 * indexNode + direction;
-
-                        ierr = VecSetValues(b, 1, &dof, &value, ADD_VALUES);
-                    }
-                }
-            }
-            //fazer teste sem isso aqui
-            ierr = VecAssemblyBegin(b);
-            CHKERRQ(ierr);
-            ierr = VecAssemblyEnd(b);
-            CHKERRQ(ierr);
-
             //Create KSP context to solve the linear system
             ierr = KSPCreate(PETSC_COMM_WORLD, &ksp);
             CHKERRQ(ierr);
@@ -459,7 +470,7 @@ int Solid::solveStaticProblem(const int &numberOfSteps, const int &maximumOfIter
             CHKERRQ(ierr);
 
             //Updates nodal variables
-            double norm = 0.0;
+            norm = 0.0;
             Ione = 1;
 
             for (size_t i = 0; i < nodes_.size(); i++)
@@ -477,53 +488,57 @@ int Solid::solveStaticProblem(const int &numberOfSteps, const int &maximumOfIter
                 nodes_[i]->incrementCurrentCoordinate(1, val);
             }
 
-            for (FiberElement *fiber : fiberInsideSolid_)
+            if (fiberInsideSolid_.size() >= 1)
             {
-                for (FiberNode *fnode : fiber->getConnection())
+                for (FiberElement *fiber : fiberInsideSolid_)
                 {
-                    Element *solid = elements_[fnode->getIndexSolidElement()];
-                    bounded_vector<double, 2> dimensionless = fnode->getDimensionlessCoordinates();
-                    vector<double> phi(n, 0.0);
-                    phi = domainShapeFunction(dimensionless(0), dimensionless(1));
-                    vector<double> correction_X1(n, 0.0);
-                    vector<double> correction_X2(n, 0.0);
-
-                    int auxiliar = 0;
-                    for (Node *solidNode : solid->getConnection())
+                    for (FiberNode *fnode : fiber->getConnection())
                     {
-                        Idof = 2 * solidNode->getIndex();
-                        ierr = VecGetValues(All, Ione, &Idof, &val);
-                        CHKERRQ(ierr);
-                        correction_X1(auxiliar) = val;
+                        Element *solid = elements_[fnode->getIndexSolidElement()];
+                        bounded_vector<double, 2> dimensionless = fnode->getDimensionlessCoordinates();
+                        vector<double> phi(n, 0.0);
+                        phi = domainShapeFunction(dimensionless(0), dimensionless(1));
+                        vector<double> correction_X1(n, 0.0);
+                        vector<double> correction_X2(n, 0.0);
 
-                        Idof = 2 * solidNode->getIndex() + 1;
-                        ierr = VecGetValues(All, Ione, &Idof, &val);
-                        CHKERRQ(ierr);
+                        int auxiliar = 0;
+                        for (Node *solidNode : solid->getConnection())
+                        {
+                            Idof = 2 * solidNode->getIndex();
+                            ierr = VecGetValues(All, Ione, &Idof, &val);
+                            CHKERRQ(ierr);
+                            correction_X1(auxiliar) = val;
 
-                        correction_X2(auxiliar) = val;
-                        auxiliar = auxiliar + 1;
+                            Idof = 2 * solidNode->getIndex() + 1;
+                            ierr = VecGetValues(All, Ione, &Idof, &val);
+                            CHKERRQ(ierr);
+
+                            correction_X2(auxiliar) = val;
+                            auxiliar = auxiliar + 1;
+                        }
+
+                        bounded_vector<double, 2> currentCoordinate;
+                        currentCoordinate = fnode->getCurrentCoordinate();
+                        currentCoordinate(0) = currentCoordinate(0) + inner_prod(phi, correction_X1);
+                        currentCoordinate(1) = currentCoordinate(1) + inner_prod(phi, correction_X2);
+
+                        fnode->setCurrentCoordinate(currentCoordinate);
                     }
-
-                    bounded_vector<double, 2> currentCoordinate;
-                    currentCoordinate = fnode->getCurrentCoordinate();
-                    currentCoordinate(0) = currentCoordinate(0) + inner_prod(phi, correction_X1);
-                    currentCoordinate(1) = currentCoordinate(1) + inner_prod(phi, correction_X2);
-
-                    fnode->setCurrentCoordinate(currentCoordinate);
+                    fiber->updateNormalForce();
                 }
-                fiber->updateNormalForce();
             }
+
+            boost::posix_time::ptime t2 =
+                boost::posix_time::microsec_clock::local_time();
 
             if (rank == 0)
             {
-                //boost::posix_time::time_duration time = t2 - t1;
-
+                boost::posix_time::time_duration diff = t2 - t1;
                 std::cout << "Iteration = " << iteration
-                          << " (" << iterations << ")"
-                          << "   x Norm = " << std::scientific << sqrt(norm)
-                          << std::endl;
-                //<< "  Time (s) = " << std::fixed
-                //<< diff.total_milliseconds()/1000. << std::endl;
+                          << " (" << loadStep << ")"
+                          << "   x Norm = " << std::scientific << sqrt(norm / initialNorm)
+                          << "  Time (s) = " << std::fixed
+                          << diff.total_milliseconds() / 1000. << std::endl;
             }
 
             ierr = KSPDestroy(&ksp);
@@ -537,22 +552,36 @@ int Solid::solveStaticProblem(const int &numberOfSteps, const int &maximumOfIter
             ierr = MatDestroy(&A);
             CHKERRQ(ierr);
 
-            if (sqrt(norm) <= tolerance)
+            if (sqrt(norm / initialNorm) <= tolerance)
             {
                 break;
             }
         }
 
+        for (Node *n : nodes_)
+        {
+            n->setZeroStressState();
+        }
+
+        for (int i = 0; i < elements_.size(); i++)
+        {
+            elements_[i]->StressCalculate(planeState_);
+        }
         if (rank == 0)
         {
             for (Node *n : nodes_)
             {
                 n->setZeroStressState();
             }
+
             for (int i = 0; i < elements_.size(); i++)
             {
                 elements_[i]->StressCalculate(planeState_);
             }
+        }
+
+        if (rank == 0)
+        {
             exportToParaview(loadStep);
         }
     }
@@ -586,12 +615,14 @@ void Solid::exportToParaview(const int &loadstep)
     {
         file << n->getCurrentCoordinate()(0) << " " << n->getCurrentCoordinate()(1) << " " << 0.0 << "\n";
     }
-    for (FiberElement *fiber : fiberInsideSolid_)
+    if (fiberInsideSolid_.size() >= 1)
     {
-        file << fiber->getConnection()[0]->getCurrentCoordinate()(0) << " " << fiber->getConnection()[0]->getCurrentCoordinate()(1) << " " << 0.0 << "\n";
-        file << fiber->getConnection()[1]->getCurrentCoordinate()(0) << " " << fiber->getConnection()[1]->getCurrentCoordinate()(1) << " " << 0.0 << "\n";
+        for (FiberElement *fiber : fiberInsideSolid_)
+        {
+            file << fiber->getConnection()[0]->getCurrentCoordinate()(0) << " " << fiber->getConnection()[0]->getCurrentCoordinate()(1) << " " << 0.0 << "\n";
+            file << fiber->getConnection()[1]->getCurrentCoordinate()(0) << " " << fiber->getConnection()[1]->getCurrentCoordinate()(1) << " " << 0.0 << "\n";
+        }
     }
-
     file << "      </DataArray>"
          << "\n"
          << "    </Points>"
@@ -617,19 +648,20 @@ void Solid::exportToParaview(const int &loadstep)
         }
         file << "\n";
     }
-
-    int initial, end;
-    initial = nodes_.size() - 1;
-    for (FiberElement *fiber : fiberInsideSolid_)
+    if (fiberInsideSolid_.size() >= 1)
     {
-        initial = initial + 1;
-        end = initial + 1;
+        int initial, end;
+        initial = nodes_.size() - 1;
+        for (FiberElement *fiber : fiberInsideSolid_)
+        {
+            initial = initial + 1;
+            end = initial + 1;
 
-        file << initial << " " << end << "\n";
+            file << initial << " " << end << "\n";
 
-        initial = end;
+            initial = end;
+        }
     }
-
     file << "      </DataArray>"
          << "\n";
     //offsets
@@ -643,10 +675,13 @@ void Solid::exportToParaview(const int &loadstep)
         aux += n;
         file << aux << "\n";
     }
-    for (FiberElement *fiber : fiberInsideSolid_)
+    if (fiberInsideSolid_.size() >= 1)
     {
-        aux += 2;
-        file << aux << "\n";
+        for (FiberElement *fiber : fiberInsideSolid_)
+        {
+            aux += 2;
+            file << aux << "\n";
+        }
     }
     file << "      </DataArray>"
          << "\n";
@@ -659,9 +694,12 @@ void Solid::exportToParaview(const int &loadstep)
     {
         file << 69 << "\n";
     }
-    for (FiberElement *fiber : fiberInsideSolid_)
+    if (fiberInsideSolid_.size() >= 1)
     {
-        file << 3 << "\n";
+        for (FiberElement *fiber : fiberInsideSolid_)
+        {
+            file << 3 << "\n";
+        }
     }
     //ATÉ AQUI ESTÁ PARA FIBRA!!!
     file << "      </DataArray>"
@@ -683,17 +721,19 @@ void Solid::exportToParaview(const int &loadstep)
 
         file << current(0) - initial(0) << " " << current(1) - initial(1) << "\n";
     }
-    for (FiberElement *fiber : fiberInsideSolid_)
+    if (fiberInsideSolid_.size() >= 1)
     {
-        bounded_vector<double, 2> initial = fiber->getConnection()[0]->getInitialCoordinate();
-        bounded_vector<double, 2> current = fiber->getConnection()[0]->getCurrentCoordinate();
-        file << current(0) - initial(0) << " " << current(1) - initial(1) << "\n";
+        for (FiberElement *fiber : fiberInsideSolid_)
+        {
+            bounded_vector<double, 2> initial = fiber->getConnection()[0]->getInitialCoordinate();
+            bounded_vector<double, 2> current = fiber->getConnection()[0]->getCurrentCoordinate();
+            file << current(0) - initial(0) << " " << current(1) - initial(1) << "\n";
 
-        initial = fiber->getConnection()[1]->getInitialCoordinate();
-        current = fiber->getConnection()[1]->getCurrentCoordinate();
-        file << current(0) - initial(0) << " " << current(1) - initial(1) << "\n";
+            initial = fiber->getConnection()[1]->getInitialCoordinate();
+            current = fiber->getConnection()[1]->getCurrentCoordinate();
+            file << current(0) - initial(0) << " " << current(1) - initial(1) << "\n";
+        }
     }
-
     file << "      </DataArray> "
          << "\n";
 
@@ -706,13 +746,16 @@ void Solid::exportToParaview(const int &loadstep)
         bounded_vector<double, 2> currentVelocity = n->getCurrentVelocity();
         file << currentVelocity(0) << " " << currentVelocity(1) << "\n";
     }
-    for (FiberElement *fiber : fiberInsideSolid_)
+    if (fiberInsideSolid_.size() >= 1)
     {
-        bounded_vector<double, 2> currentVelocity = fiber->getConnection()[0]->getCurrentVelocity();
-        file << currentVelocity(0) << " " << currentVelocity(1) << "\n";
+        for (FiberElement *fiber : fiberInsideSolid_)
+        {
+            bounded_vector<double, 2> currentVelocity = fiber->getConnection()[0]->getCurrentVelocity();
+            file << currentVelocity(0) << " " << currentVelocity(1) << "\n";
 
-        currentVelocity = fiber->getConnection()[1]->getCurrentVelocity();
-        file << currentVelocity(0) << " " << currentVelocity(1) << "\n";
+            currentVelocity = fiber->getConnection()[1]->getCurrentVelocity();
+            file << currentVelocity(0) << " " << currentVelocity(1) << "\n";
+        }
     }
 
     file << "      </DataArray> "
@@ -725,15 +768,17 @@ void Solid::exportToParaview(const int &loadstep)
     {
         file << n->getCurrentAcceleration()(0) << " " << n->getCurrentAcceleration()(1) << "\n";
     }
-    for (FiberElement *fiber : fiberInsideSolid_)
+    if (fiberInsideSolid_.size() >= 1)
     {
-        bounded_vector<double, 2> current = fiber->getConnection()[0]->getCurrentAcceleration();
-        file << current(0) << " " << current(1) << "\n";
+        for (FiberElement *fiber : fiberInsideSolid_)
+        {
+            bounded_vector<double, 2> current = fiber->getConnection()[0]->getCurrentAcceleration();
+            file << current(0) << " " << current(1) << "\n";
 
-        current = fiber->getConnection()[1]->getCurrentAcceleration();
-        file << current(0) << " " << current(1) << "\n";
+            current = fiber->getConnection()[1]->getCurrentAcceleration();
+            file << current(0) << " " << current(1) << "\n";
+        }
     }
-
     file << "      </DataArray> "
          << "\n";
 
@@ -747,10 +792,13 @@ void Solid::exportToParaview(const int &loadstep)
         double aux2 = n->getStressState()(1);
         file << aux1 / cont << " " << aux2 / cont << "\n";
     }
-    for (FiberElement *fiber : fiberInsideSolid_)
+    if (fiberInsideSolid_.size() >= 1)
     {
-        file << 0.0 << " " << 0.0 << "\n";
-        file << 0.0 << " " << 0.0 << "\n";
+        for (FiberElement *fiber : fiberInsideSolid_)
+        {
+            file << 0.0 << " " << 0.0 << "\n";
+            file << 0.0 << " " << 0.0 << "\n";
+        }
     }
 
     file << "      </DataArray> "
@@ -765,10 +813,13 @@ void Solid::exportToParaview(const int &loadstep)
         double aux3 = n->getStressState()(2);
         file << aux3 / cont << "\n";
     }
-    for (FiberElement *fiber : fiberInsideSolid_)
+    if (fiberInsideSolid_.size() >= 1)
     {
-        file << 0.0 << "\n";
-        file << 0.0 << "\n";
+        for (FiberElement *fiber : fiberInsideSolid_)
+        {
+            file << 0.0 << "\n";
+            file << 0.0 << "\n";
+        }
     }
     file << "      </DataArray> "
          << "\n";
@@ -780,10 +831,13 @@ void Solid::exportToParaview(const int &loadstep)
     {
         file << 0.0 << "\n";
     }
-    for (FiberElement *fiber : fiberInsideSolid_)
+    if (fiberInsideSolid_.size() >= 1)
     {
-        file << fiber->getConnection()[0]->getNormalForce() << "\n";
-        file << fiber->getConnection()[1]->getNormalForce() << "\n";
+        for (FiberElement *fiber : fiberInsideSolid_)
+        {
+            file << fiber->getConnection()[0]->getNormalForce() << "\n";
+            file << fiber->getConnection()[1]->getNormalForce() << "\n";
+        }
     }
     file << "      </DataArray> "
          << "\n";
@@ -923,7 +977,6 @@ void Solid::readAnsysInput(const std::string &read)
 
         std::getline(file, line);
     }
-
     domainDecompositionMETIS(elementType_);
 }
 
@@ -995,7 +1048,9 @@ void Solid::readFibersInput(const std::string &read)
 
         std::getline(file, line);
     }
+
     incidenceOfFibers();
+
     fibersDecompositionMETIS();
 }
 
@@ -1122,6 +1177,7 @@ void Solid::incidenceOfFibers()
             fiberInsideSolid_.push_back(fib);
         }
     }
+    delete[] fiberElementPartition_;
 }
 
 bounded_matrix<double, 2, 2> Solid::inverseMatrix(const bounded_matrix<double, 2, 2> &matrix)

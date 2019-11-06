@@ -549,6 +549,7 @@ void Element::StressCalculate(const std::string &ep)
             cauchy(0) = sigma(0, 0);
             cauchy(1) = sigma(1, 1);
             cauchy(2) = sigma(0, 1);
+            // std::cout << thickness_ << std::endl;
 
             getConnection()[i]->setStressState(cauchy);
         }

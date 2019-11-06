@@ -12,6 +12,8 @@
 #include <boost/numeric/ublas/matrix.hpp>
 #include <boost/numeric/ublas/vector.hpp>
 #include <boost/numeric/ublas/io.hpp>
+#include <boost/timer.hpp> 
+#include <boost/thread.hpp>
 //#include <boost/numeric/bindings/lapack/driver/posv.hpp>
 // #include <boost/numeric/bindings/lapack/driver/gesv.hpp>
 // #include <boost/numeric/bindings/lapack/computational/getrf.hpp>
