@@ -5,7 +5,7 @@ static char help[] = "Code to solve static and dynamic nonlinear analysis of 2D 
 int main(int argc, char **args)
 {
     PetscInitialize(&argc, &args, (char *)0, help);
-    
+
     boost::posix_time::ptime initial =
         boost::posix_time::microsec_clock::local_time();
 
@@ -16,14 +16,25 @@ int main(int argc, char **args)
 
     Solid *problem = new Solid;
 
-    problem->setAnalysisParameters("EPT", "T6", 12); //("EPD or EPT", "T3, T6 or T10", 7 or 12)
-    //problem->setDynamicAnalysisParameters(0.0001, 0.25, 0.5);
+    //ESTADO PLANO, TIPO DE ELEMENTO, NÚMEROS DE PONTOS DE HAMMER
+    problem->setAnalysisParameters("EPT", "T6", 12);
 
+    //LENDO ARQUIVO
     problem->readAnsysInput("cplusplus.txt");
-    
-    //problem->readFibersInput("cplusplusFibers.txt");
 
-    problem->solveStaticProblem(20, 15, 1.0e-08);
+    //LENDO ARQUIVO DE FIBRAS, SE EXISTIR
+    FILE *fibras;
+    fibras = fopen("cplusplusFibers.txt", "r");
+    if (fibras != NULL)
+    {
+        fclose(fibras);
+        problem->readFibersInput("cplusplusFibers.txt");
+    }
+
+    //RESOLVENDO O PROBLEMA
+    problem->solveStaticProblem(1, 30, 1.0e-07);
+
+    //problem->setDynamicAnalysisParameters(0.0001, 0.25, 0.5);
     //solveDynamicProblem(mesmo do estático)
 
     boost::posix_time::ptime end =

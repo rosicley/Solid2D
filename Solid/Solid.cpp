@@ -324,100 +324,110 @@ int Solid::solveStaticProblem(const int &numberOfSteps, const int &maximumOfIter
                 }
             }
 
-            if (fiberInsideSolid_.size() >= 1)
+            if (fiberElements_.size() >= 1)
             {
-                for (FiberElement *fib : fiberInsideSolid_)
+                for (FiberElement *fib : fiberElements_)
                 {
                     if (fiberElementPartition_[fib->getIndex()] == rank)
                     {
-                        std::pair<vector<double>, matrix<double>> elementMatrices;
-                        elementMatrices = fiberContribution("STATIC", fib);
                         FiberNode *initial = fib->getConnection()[0];
                         FiberNode *end = fib->getConnection()[1];
+
                         int indexSolidInitical = initial->getIndexSolidElement();
                         int indexSolidEnd = end->getIndexSolidElement();
 
-                        vector<int> indexNodes(2 * n);
-                        for (int i = 0; i < n; i++)
+                        if (indexSolidInitical >= 0 && indexSolidEnd >= 0)
                         {
-                            indexNodes(i) = elements_[indexSolidInitical]->getConnection()[i]->getIndex();
-                            indexNodes(i + n) = elements_[indexSolidEnd]->getConnection()[i]->getIndex();
-                        }
 
-                        for (size_t i = 0; i < n; i++)
-                        {
-                            if (fabs(elementMatrices.first(2 * i)) >= 1.0e-15)
+                            std::pair<vector<double>, matrix<double>> elementMatrices;
+                            elementMatrices = fiberContribution("STATIC", fib);
+                            FiberNode *initial = fib->getConnection()[0];
+                            FiberNode *end = fib->getConnection()[1];
+                            int indexSolidInitical = initial->getIndexSolidElement();
+                            int indexSolidEnd = end->getIndexSolidElement();
+
+                            vector<int> indexNodes(2 * n);
+                            for (int i = 0; i < n; i++)
                             {
-                                int dof = 2 * indexNodes(i);
-                                ierr = VecSetValues(b, 1, &dof, &elementMatrices.first(2 * i), ADD_VALUES);
-                            }
-                            if (fabs(elementMatrices.first(2 * i + 1)) >= 1.0e-15)
-                            {
-                                int dof = 2 * indexNodes(i) + 1;
-                                ierr = VecSetValues(b, 1, &dof, &elementMatrices.first(2 * i + 1), ADD_VALUES);
+                                indexNodes(i) = elements_[indexSolidInitical]->getConnection()[i]->getIndex();
+                                indexNodes(i + n) = elements_[indexSolidEnd]->getConnection()[i]->getIndex();
                             }
 
-                            if (fabs(elementMatrices.first(2 * (i + n))) >= 1.0e-15)
+                            for (size_t i = 0; i < n; i++)
                             {
-                                int dof = 2 * indexNodes(i + n);
-                                ierr = VecSetValues(b, 1, &dof, &elementMatrices.first(2 * (i + n)), ADD_VALUES);
-                            }
-                            if (fabs(elementMatrices.first(2 * (i + n) + 1)) >= 1.0e-15)
-                            {
-                                int dof = 2 * indexNodes(i + n) + 1;
-                                ierr = VecSetValues(b, 1, &dof, &elementMatrices.first(2 * (i + n) + 1), ADD_VALUES);
-                            }
+                                if (fabs(elementMatrices.first(2 * i)) >= 1.0e-15)
+                                {
+                                    int dof = 2 * indexNodes(i);
+                                    ierr = VecSetValues(b, 1, &dof, &elementMatrices.first(2 * i), ADD_VALUES);
+                                }
+                                if (fabs(elementMatrices.first(2 * i + 1)) >= 1.0e-15)
+                                {
+                                    int dof = 2 * indexNodes(i) + 1;
+                                    ierr = VecSetValues(b, 1, &dof, &elementMatrices.first(2 * i + 1), ADD_VALUES);
+                                }
 
-                            for (size_t j = 0; j < n; j++)
-                            {
-                                if (fabs(elementMatrices.second(2 * i, 2 * j)) >= 1.e-15)
+                                if (fabs(elementMatrices.first(2 * (i + n))) >= 1.0e-15)
                                 {
-                                    int dof1 = 2 * indexNodes(i);
-                                    int dof2 = 2 * indexNodes(j);
-                                    ierr = MatSetValues(A, 1, &dof1, 1, &dof2, &elementMatrices.second(2 * i, 2 * j), ADD_VALUES);
+                                    int dof = 2 * indexNodes(i + n);
+                                    ierr = VecSetValues(b, 1, &dof, &elementMatrices.first(2 * (i + n)), ADD_VALUES);
                                 }
-                                if (fabs(elementMatrices.second(2 * i, 2 * j + 1)) >= 1.e-15)
+                                if (fabs(elementMatrices.first(2 * (i + n) + 1)) >= 1.0e-15)
                                 {
-                                    int dof1 = 2 * indexNodes(i);
-                                    int dof2 = 2 * indexNodes(j) + 1;
-                                    ierr = MatSetValues(A, 1, &dof1, 1, &dof2, &elementMatrices.second(2 * i, 2 * j + 1), ADD_VALUES);
+                                    int dof = 2 * indexNodes(i + n) + 1;
+                                    ierr = VecSetValues(b, 1, &dof, &elementMatrices.first(2 * (i + n) + 1), ADD_VALUES);
                                 }
-                                if (fabs(elementMatrices.second(2 * i + 1, 2 * j)) >= 1.e-15)
+
+                                for (size_t j = 0; j < n; j++)
                                 {
-                                    int dof1 = 2 * indexNodes(i) + 1;
-                                    int dof2 = 2 * indexNodes(j);
-                                    ierr = MatSetValues(A, 1, &dof1, 1, &dof2, &elementMatrices.second(2 * i + 1, 2 * j), ADD_VALUES);
-                                }
-                                if (fabs(elementMatrices.second(2 * i + 1, 2 * j + 1)) >= 1.e-15)
-                                {
-                                    int dof1 = 2 * indexNodes(i) + 1;
-                                    int dof2 = 2 * indexNodes(j) + 1;
-                                    ierr = MatSetValues(A, 1, &dof1, 1, &dof2, &elementMatrices.second(2 * i + 1, 2 * j + 1), ADD_VALUES);
-                                }
-                                //segundo elemento
-                                if (fabs(elementMatrices.second(2 * (i + n), 2 * (j + n))) >= 1.e-15)
-                                {
-                                    int dof1 = 2 * indexNodes(i + n);
-                                    int dof2 = 2 * indexNodes(j + n);
-                                    ierr = MatSetValues(A, 1, &dof1, 1, &dof2, &elementMatrices.second(2 * (i + n), 2 * (j + n)), ADD_VALUES);
-                                }
-                                if (fabs(elementMatrices.second(2 * (i + n), 2 * (j + n) + 1)) >= 1.e-15)
-                                {
-                                    int dof1 = 2 * indexNodes(i + n);
-                                    int dof2 = 2 * indexNodes(j + n) + 1;
-                                    ierr = MatSetValues(A, 1, &dof1, 1, &dof2, &elementMatrices.second(2 * (i + n), 2 * (j + n) + 1), ADD_VALUES);
-                                }
-                                if (fabs(elementMatrices.second(2 * (i + n) + 1, 2 * (j + n))) >= 1.e-15)
-                                {
-                                    int dof1 = 2 * indexNodes(i + n) + 1;
-                                    int dof2 = 2 * indexNodes(j + n);
-                                    ierr = MatSetValues(A, 1, &dof1, 1, &dof2, &elementMatrices.second(2 * (i + n) + 1, 2 * (j + n)), ADD_VALUES);
-                                }
-                                if (fabs(elementMatrices.second(2 * (i + n) + 1, 2 * (j + n) + 1)) >= 1.e-15)
-                                {
-                                    int dof1 = 2 * indexNodes(i + n) + 1;
-                                    int dof2 = 2 * indexNodes(j + n) + 1;
-                                    ierr = MatSetValues(A, 1, &dof1, 1, &dof2, &elementMatrices.second(2 * (i + n) + 1, 2 * (j + n) + 1), ADD_VALUES);
+                                    if (fabs(elementMatrices.second(2 * i, 2 * j)) >= 1.e-15)
+                                    {
+                                        int dof1 = 2 * indexNodes(i);
+                                        int dof2 = 2 * indexNodes(j);
+                                        ierr = MatSetValues(A, 1, &dof1, 1, &dof2, &elementMatrices.second(2 * i, 2 * j), ADD_VALUES);
+                                    }
+                                    if (fabs(elementMatrices.second(2 * i, 2 * j + 1)) >= 1.e-15)
+                                    {
+                                        int dof1 = 2 * indexNodes(i);
+                                        int dof2 = 2 * indexNodes(j) + 1;
+                                        ierr = MatSetValues(A, 1, &dof1, 1, &dof2, &elementMatrices.second(2 * i, 2 * j + 1), ADD_VALUES);
+                                    }
+                                    if (fabs(elementMatrices.second(2 * i + 1, 2 * j)) >= 1.e-15)
+                                    {
+                                        int dof1 = 2 * indexNodes(i) + 1;
+                                        int dof2 = 2 * indexNodes(j);
+                                        ierr = MatSetValues(A, 1, &dof1, 1, &dof2, &elementMatrices.second(2 * i + 1, 2 * j), ADD_VALUES);
+                                    }
+                                    if (fabs(elementMatrices.second(2 * i + 1, 2 * j + 1)) >= 1.e-15)
+                                    {
+                                        int dof1 = 2 * indexNodes(i) + 1;
+                                        int dof2 = 2 * indexNodes(j) + 1;
+                                        ierr = MatSetValues(A, 1, &dof1, 1, &dof2, &elementMatrices.second(2 * i + 1, 2 * j + 1), ADD_VALUES);
+                                    }
+                                    //segundo elemento
+                                    if (fabs(elementMatrices.second(2 * (i + n), 2 * (j + n))) >= 1.e-15)
+                                    {
+                                        int dof1 = 2 * indexNodes(i + n);
+                                        int dof2 = 2 * indexNodes(j + n);
+                                        ierr = MatSetValues(A, 1, &dof1, 1, &dof2, &elementMatrices.second(2 * (i + n), 2 * (j + n)), ADD_VALUES);
+                                    }
+                                    if (fabs(elementMatrices.second(2 * (i + n), 2 * (j + n) + 1)) >= 1.e-15)
+                                    {
+                                        int dof1 = 2 * indexNodes(i + n);
+                                        int dof2 = 2 * indexNodes(j + n) + 1;
+                                        ierr = MatSetValues(A, 1, &dof1, 1, &dof2, &elementMatrices.second(2 * (i + n), 2 * (j + n) + 1), ADD_VALUES);
+                                    }
+                                    if (fabs(elementMatrices.second(2 * (i + n) + 1, 2 * (j + n))) >= 1.e-15)
+                                    {
+                                        int dof1 = 2 * indexNodes(i + n) + 1;
+                                        int dof2 = 2 * indexNodes(j + n);
+                                        ierr = MatSetValues(A, 1, &dof1, 1, &dof2, &elementMatrices.second(2 * (i + n) + 1, 2 * (j + n)), ADD_VALUES);
+                                    }
+                                    if (fabs(elementMatrices.second(2 * (i + n) + 1, 2 * (j + n) + 1)) >= 1.e-15)
+                                    {
+                                        int dof1 = 2 * indexNodes(i + n) + 1;
+                                        int dof2 = 2 * indexNodes(j + n) + 1;
+                                        ierr = MatSetValues(A, 1, &dof1, 1, &dof2, &elementMatrices.second(2 * (i + n) + 1, 2 * (j + n) + 1), ADD_VALUES);
+                                    }
                                 }
                             }
                         }
@@ -558,15 +568,15 @@ int Solid::solveStaticProblem(const int &numberOfSteps, const int &maximumOfIter
             }
         }
 
-        for (Node *n : nodes_)
-        {
-            n->setZeroStressState();
-        }
+        // for (Node *n : nodes_)
+        // {
+        //     n->setZeroStressState();
+        // }
 
-        for (int i = 0; i < elements_.size(); i++)
-        {
-            elements_[i]->StressCalculate(planeState_);
-        }
+        // for (int i = 0; i < elements_.size(); i++)
+        // {
+        //     elements_[i]->StressCalculate(planeState_);
+        // }
         if (rank == 0)
         {
             for (Node *n : nodes_)
@@ -1056,13 +1066,16 @@ void Solid::readFibersInput(const std::string &read)
 
 void Solid::incidenceOfFibers()
 {
+    boost::posix_time::ptime t1 =
+        boost::posix_time::microsec_clock::local_time();
+
     matrix<double> dataelems(elements_.size(), 3, 0.0);
 
     int n = (order_ + 1) * (order_ + 2) / 2.0;
 
-    int cont = 0;
     for (Element *el : elements_)
     {
+        int cont = el->getIndex();
         bounded_vector<double, 2> coordinate_0 = el->getConnection()[0]->getInitialCoordinate();
         bounded_vector<double, 2> coordinate_1 = el->getConnection()[1]->getInitialCoordinate();
         bounded_vector<double, 2> coordinate_2 = el->getConnection()[2]->getInitialCoordinate();
@@ -1082,14 +1095,12 @@ void Solid::incidenceOfFibers()
         dataelems(cont, 0) = center(0);
         dataelems(cont, 1) = center(1);
         dataelems(cont, 2) = rmax;
-        cont = cont + 1;
     }
-    int no = 0;
     for (FiberNode *fnode : fiberNodes_)
     {
-        cont = 0;
         for (Element *el : elements_)
         {
+            int cont = el->getIndex();
             bounded_vector<double, 2> coord = fnode->getInitialCoordinate();
             bounded_vector<double, 2> normf;
             normf(0) = coord(0) - dataelems(cont, 0);
@@ -1160,24 +1171,33 @@ void Solid::incidenceOfFibers()
                     break;
                 }
             }
-            cont = cont + 1;
         }
     }
 
-    for (FiberElement *fib : fiberElements_)
+    int rank;
+
+    MPI_Comm_rank(PETSC_COMM_WORLD, &rank);
+    if (rank == 0)
     {
-        FiberNode *initial = fib->getConnection()[0];
-        FiberNode *end = fib->getConnection()[1];
-
-        int indexSolidInitical = initial->getIndexSolidElement();
-        int indexSolidEnd = end->getIndexSolidElement();
-
-        if (indexSolidInitical >= 0 && indexSolidEnd >= 0)
+        for (FiberElement *fib : fiberElements_)
         {
-            fiberInsideSolid_.push_back(fib);
+            FiberNode *initial = fib->getConnection()[0];
+            FiberNode *end = fib->getConnection()[1];
+
+            int indexSolidInitical = initial->getIndexSolidElement();
+            int indexSolidEnd = end->getIndexSolidElement();
+
+            if (indexSolidInitical >= 0 && indexSolidEnd >= 0)
+            {
+                fiberInsideSolid_.push_back(fib);
+            }
         }
+        boost::posix_time::ptime t2 =
+            boost::posix_time::microsec_clock::local_time();
+        boost::posix_time::time_duration diff = t2 - t1;
+        std::cout << "INCIDENCIA DAS FIBRAS NO SÓLIDO EM " << std::fixed
+                  << diff.total_milliseconds() / 1000. << "SEGUNDOS " << std::endl;
     }
-    delete[] fiberElementPartition_;
 }
 
 bounded_matrix<double, 2, 2> Solid::inverseMatrix(const bounded_matrix<double, 2, 2> &matrix)
@@ -1292,6 +1312,64 @@ void Solid::domainDecompositionMETIS(const std::string &elementType)
     }
 }
 
+// void Solid::fibersDecompositionMETIS()
+// {
+//     std::string mirror2;
+//     mirror2 = "fiber_decomposition.txt";
+//     std::ofstream mirrorData(mirror2.c_str());
+
+//     int size;
+
+//     MPI_Comm_size(PETSC_COMM_WORLD, &size);
+
+//     idx_t objval;
+//     idx_t numEl = fiberInsideSolid_.size();
+//     idx_t numNd = 2 * fiberInsideSolid_.size();
+//     idx_t ssize = size;
+//     idx_t one = 1;
+//     idx_t n;
+
+//     n = 2;
+
+//     idx_t elem_start[numEl + 1], elem_connec[n * numEl];
+//     fiberElementPartition_ = new idx_t[numEl];
+//     fiberNodePartition_ = new idx_t[numNd];
+
+//     for (idx_t i = 0; i < numEl + 1; i++)
+//     {
+//         elem_start[i] = n * i;
+//     }
+//     for (idx_t jel = 0; jel < numEl; jel++)
+//     {
+//         for (idx_t i = 0; i < n; i++)
+//         {
+//             int nodeIndex = fiberInsideSolid_[jel]->getConnection()[i]->getIndex();
+//             elem_connec[n * jel + i] = nodeIndex;
+//         }
+//     }
+
+//     //Performs the domain decomposition
+//     METIS_PartMeshDual(&numEl, &numNd, elem_start, elem_connec,
+//                        NULL, NULL, &one, &ssize, NULL, NULL,
+//                        &objval, fiberElementPartition_, fiberNodePartition_);
+
+//     mirrorData << std::endl
+//                << "FIBER DECOMPOSITION - ELEMENTS" << std::endl;
+//     for (int i = 0; i < fiberInsideSolid_.size(); i++)
+//     {
+//         mirrorData << "process = " << fiberElementPartition_[i]
+//                    << ", element = " << i << std::endl;
+//     }
+
+//     mirrorData << std::endl
+//                << "FIBER DECOMPOSITION - NODES" << std::endl;
+//     for (int i = 0; i < 2 * fiberInsideSolid_.size(); i++)
+//     {
+//         mirrorData << "process = " << fiberNodePartition_[i]
+//                    << ", node = " << i << std::endl;
+//     }
+// }
+
 void Solid::fibersDecompositionMETIS()
 {
     std::string mirror2;
@@ -1303,8 +1381,8 @@ void Solid::fibersDecompositionMETIS()
     MPI_Comm_size(PETSC_COMM_WORLD, &size);
 
     idx_t objval;
-    idx_t numEl = fiberInsideSolid_.size();
-    idx_t numNd = 2 * fiberInsideSolid_.size();
+    idx_t numEl = fiberElements_.size();
+    idx_t numNd = 2 * fiberElements_.size();
     idx_t ssize = size;
     idx_t one = 1;
     idx_t n;
@@ -1321,10 +1399,9 @@ void Solid::fibersDecompositionMETIS()
     }
     for (idx_t jel = 0; jel < numEl; jel++)
     {
-
-        for (idx_t i = 0; i < fiberInsideSolid_[jel]->getConnection().size(); i++)
+        for (idx_t i = 0; i < n; i++)
         {
-            int nodeIndex = fiberInsideSolid_[jel]->getConnection()[i]->getIndex();
+            int nodeIndex = fiberElements_[jel]->getConnection()[i]->getIndex();
             elem_connec[n * jel + i] = nodeIndex;
         }
     }
@@ -1336,7 +1413,7 @@ void Solid::fibersDecompositionMETIS()
 
     mirrorData << std::endl
                << "FIBER DECOMPOSITION - ELEMENTS" << std::endl;
-    for (int i = 0; i < fiberInsideSolid_.size(); i++)
+    for (int i = 0; i < fiberElements_.size(); i++)
     {
         mirrorData << "process = " << fiberElementPartition_[i]
                    << ", element = " << i << std::endl;
@@ -1344,7 +1421,7 @@ void Solid::fibersDecompositionMETIS()
 
     mirrorData << std::endl
                << "FIBER DECOMPOSITION - NODES" << std::endl;
-    for (int i = 0; i < 2 * fiberInsideSolid_.size(); i++)
+    for (int i = 0; i < 2 * fiberElements_.size(); i++)
     {
         mirrorData << "process = " << fiberNodePartition_[i]
                    << ", node = " << i << std::endl;
