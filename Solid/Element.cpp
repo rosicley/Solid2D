@@ -470,11 +470,12 @@ std::pair<vector<double>, matrix<double>> Element::elementContributions(const st
                         // double v = dE_dy3(0, 0) * S(0, 0) + dE_dy3(1, 1) * S(1, 1) + dE_dy3(0, 1) * S(0, 1) + dE_dy3(1, 0) * S(1, 0) +                //second part of equation 5.88
                         //            dE_dy2(0, 0) * dS_dy(0, 0) + dE_dy2(1, 1) * dS_dy(1, 1) + dE_dy2(0, 1) * dS_dy(0, 1) + dE_dy2(1, 0) * dS_dy(1, 0); //viscosity and pressure contribution
 
-                        double m = density * phi(i) * phi(k); //mass contribution
-
                         tangent(2 * i + j, 2 * k + l) += v * weight * j0 * thickness_;
                         if (j == l)
-                            tangent(2 * i + j, 2 * k + l) += (m / (beta_ * deltat_ * deltat_)) * weight * j0 * thickness_;
+                        {
+                            double mm = density * phi(i) * phi(k); //mass contribution
+                            tangent(2 * i + j, 2 * k + l) += (mm / (beta_ * deltat_ * deltat_)) * weight * j0 * thickness_;
+                        }
                     }
                 }
             }
@@ -635,4 +636,33 @@ void Element::StressCalculate(const std::string &ep)
             getConnection()[i]->setStressState(cauchy);
         }
     }
+}
+
+matrix<double> Element::massMatrix()
+{
+    matrix<double> mass(2 * connection_.size(), 2 * connection_.size(), 0.0);
+    matrix<double> domainIntegrationPoints_ = hammerQuadrature(numberOfDomainIntegrationPoints_);
+    double auxiliar = material_->getDensity() * thickness_;
+    double resul;
+
+    for (int ih = 0; ih < numberOfDomainIntegrationPoints_; ih++)
+    {
+        double xsi1 = domainIntegrationPoints_(ih, 0);
+        double xsi2 = domainIntegrationPoints_(ih, 1);
+        double weight = domainIntegrationPoints_(ih, 2);
+
+        vector<double> phi = domainShapeFunction(xsi1, xsi2);
+
+        for (int i = 0; i < connection_.size(); i++)
+        {
+
+            for (int k = 0; k < connection_.size(); k++)
+            {
+                resul = auxiliar * phi(i) * phi(k);
+                mass(2 * i, 2 * k) += resul;
+                mass(2 * i + 1, 2 * k + 1) += resul;
+            }
+        }
+    }
+    return mass;
 }

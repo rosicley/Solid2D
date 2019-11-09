@@ -51,6 +51,8 @@ public:
 
     void StressCalculate(const std::string &ep);
 
+    matrix<double> massMatrix();
+
     // std::vector<double> InternalForce();
 
     // bounded_matrix<double, 6, 6> localHessian();

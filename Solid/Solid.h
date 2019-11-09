@@ -14,13 +14,6 @@
 #include <boost/numeric/ublas/io.hpp>
 #include <boost/timer.hpp> 
 #include <boost/thread.hpp>
-//#include <boost/numeric/bindings/lapack/driver/posv.hpp>
-// #include <boost/numeric/bindings/lapack/driver/gesv.hpp>
-// #include <boost/numeric/bindings/lapack/computational/getrf.hpp>
-// #include <boost/numeric/bindings/lapack/computational/getri.hpp>
-// #include <boost/numeric/bindings/ublas/matrix.hpp>
-// #include <boost/numeric/bindings/ublas/vector.hpp>
-// #include <boost/numeric/bindings/lapack/workspace.hpp>
 #include <metis.h>
 #include <petscksp.h>
 
@@ -77,20 +70,13 @@ public:
 
     std::pair<vector<double>, matrix<double, column_major>> fiberContribution(const std::string &typeAnalyze, FiberElement *fib);
 
-
-    // std::vector<Node *> getNodes();
-
-    // std::vector<Element *> getElements();
-
-    // std::vector<Material *> getMaterial();
-
     vector<double> ExternalForces();
 
     int solveStaticProblem(const int &numberOfSteps, const int &maximumOfIteration, const double &tolerance);
 
-    bounded_matrix<double, 2 ,2> inverseMatrix(const bounded_matrix<double, 2, 2> &matrix);
+    int solveDynamicProblem(const int &numberOfTimes, const int &maximumOfIteration, const double &tolerance);
 
-    //int solveDynamicProblem(const int &numberOfTimes, const double &tolerance);
+    bounded_matrix<double, 2 ,2> inverseMatrix(const bounded_matrix<double, 2, 2> &matrix);
 
     void exportToParaview(const int &loadstep);
 
@@ -104,6 +90,13 @@ public:
 
     void fibersDecompositionMETIS();
 
+    int firstAccelerationCalculation();
+
+    Node* getNode(const int& index);
+
+	Element* getElement(const int& index);
+
+	Material* getMaterial(const int& index);
 
 private:
     std::vector<Node *> nodes_;
@@ -123,12 +116,6 @@ private:
     std::vector<FiberElement *> fiberInsideSolid_;
 
     std::vector<FiberMaterial *> fiberMaterials_;
-
-    int numberOfSteps_;
-
-    double tolerance_;
-
-    //std::string name_;
 
     std::string elementType_;
 
