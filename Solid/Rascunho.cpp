@@ -460,3 +460,141 @@
 //                 currentCoordinate=initial->getCurrentCoordinate();
 //                 currentCoordinate(0)=currentCoordinate(0)+inner_prod(phi_initial, correction_X1ElementInitial);
 //                 currentCoordinate(1)=currentCoordinate(1)+inner_prod(phi_initial,correction_X2ElementInitial);
+
+
+
+// vector<int> indexNodes(2 * n, 0.0);
+                            // for (int i = 0; i < n; i++)
+                            // {
+                            //     indexNodes(i) = elements_[indexSolidInitical]->getConnection()[i]->getIndex();
+                            //     indexNodes(i + n) = elements_[indexSolidEnd]->getConnection()[i]->getIndex();
+                            // }
+
+                            // for (size_t i = 0; i < n; i++)
+                            // {
+                            //     if (fabs(elementMatrices.first(2 * i)) >= 1.0e-15)
+                            //     {
+                            //         int dof = 2 * indexNodes(i);
+                            //         ierr = VecSetValues(b, 1, &dof, &elementMatrices.first(2 * i), ADD_VALUES);
+                            //     }
+                            //     if (fabs(elementMatrices.first(2 * i + 1)) >= 1.0e-15)
+                            //     {
+                            //         int dof = 2 * indexNodes(i) + 1;
+                            //         ierr = VecSetValues(b, 1, &dof, &elementMatrices.first(2 * i + 1), ADD_VALUES);
+                            //     }
+
+                            //     if (fabs(elementMatrices.first(2 * (i + n))) >= 1.0e-15)
+                            //     {
+                            //         int dof = 2 * indexNodes(i + n);
+                            //         ierr = VecSetValues(b, 1, &dof, &elementMatrices.first(2 * (i + n)), ADD_VALUES);
+                            //     }
+                            //     if (fabs(elementMatrices.first(2 * (i + n) + 1)) >= 1.0e-15)
+                            //     {
+                            //         int dof = 2 * indexNodes(i + n) + 1;
+                            //         ierr = VecSetValues(b, 1, &dof, &elementMatrices.first(2 * (i + n) + 1), ADD_VALUES);
+                            //     }
+
+                            //     for (size_t j = 0; j < n; j++)
+                            //     {
+                            //         //Primeiro quadrante
+                            //         if (fabs(elementMatrices.second(2 * i, 2 * j)) >= 1.e-15)
+                            //         {
+                            //             int dof1 = 2 * indexNodes(i);
+                            //             int dof2 = 2 * indexNodes(j);
+                            //             ierr = MatSetValues(A, 1, &dof1, 1, &dof2, &elementMatrices.second(2 * i, 2 * j), ADD_VALUES);
+                            //         }
+                            //         if (fabs(elementMatrices.second(2 * i, 2 * j + 1)) >= 1.e-15)
+                            //         {
+                            //             int dof1 = 2 * indexNodes(i);
+                            //             int dof2 = 2 * indexNodes(j) + 1;
+                            //             ierr = MatSetValues(A, 1, &dof1, 1, &dof2, &elementMatrices.second(2 * i, 2 * j + 1), ADD_VALUES);
+                            //         }
+                            //         if (fabs(elementMatrices.second(2 * i + 1, 2 * j)) >= 1.e-15)
+                            //         {
+                            //             int dof1 = 2 * indexNodes(i) + 1;
+                            //             int dof2 = 2 * indexNodes(j);
+                            //             ierr = MatSetValues(A, 1, &dof1, 1, &dof2, &elementMatrices.second(2 * i + 1, 2 * j), ADD_VALUES);
+                            //         }
+                            //         if (fabs(elementMatrices.second(2 * i + 1, 2 * j + 1)) >= 1.e-15)
+                            //         {
+                            //             int dof1 = 2 * indexNodes(i) + 1;
+                            //             int dof2 = 2 * indexNodes(j) + 1;
+                            //             ierr = MatSetValues(A, 1, &dof1, 1, &dof2, &elementMatrices.second(2 * i + 1, 2 * j + 1), ADD_VALUES);
+                            //         }
+                            //         //Segundo quadrante
+                            //         if (fabs(elementMatrices.second(2 * i, 2 * (j + n)) >= 1.e-15))
+                            //         {
+                            //             int dof1 = 2 * indexNodes(i);
+                            //             int dof2 = 2 * indexNodes(j + n);
+                            //             ierr = MatSetValues(A, 1, &dof1, 1, &dof2, &elementMatrices.second(2 * i, 2 * (j + n)), ADD_VALUES);
+                            //         }
+                            //         if (fabs(elementMatrices.second(2 * i, 2 * (j + n) + 1)) >= 1.e-15)
+                            //         {
+                            //             int dof1 = 2 * indexNodes(i);
+                            //             int dof2 = 2 * indexNodes(j + n) + 1;
+                            //             ierr = MatSetValues(A, 1, &dof1, 1, &dof2, &elementMatrices.second(2 * i, 2 * (j + n) + 1), ADD_VALUES);
+                            //         }
+                            //         if (fabs(elementMatrices.second(2 * i + 1, 2 * (j + n))) >= 1.e-15)
+                            //         {
+                            //             int dof1 = 2 * indexNodes(i) + 1;
+                            //             int dof2 = 2 * indexNodes(j + n);
+                            //             ierr = MatSetValues(A, 1, &dof1, 1, &dof2, &elementMatrices.second(2 * i + 1, 2 * (j + n)), ADD_VALUES);
+                            //         }
+                            //         if (fabs(elementMatrices.second(2 * i + 1, 2 * (j + n) + 1)) >= 1.e-15)
+                            //         {
+                            //             int dof1 = 2 * indexNodes(i) + 1;
+                            //             int dof2 = 2 * indexNodes(j + n) + 1;
+                            //             ierr = MatSetValues(A, 1, &dof1, 1, &dof2, &elementMatrices.second(2 * i + 1, 2 * (j + n) + 1), ADD_VALUES);
+                            //         }
+                            //         //Terceiro quadrante
+                            //         if (fabs(elementMatrices.second(2 * (i + n), 2 * j)) >= 1.e-15)
+                            //         {
+                            //             int dof1 = 2 * indexNodes(i + n);
+                            //             int dof2 = 2 * indexNodes(j);
+                            //             ierr = MatSetValues(A, 1, &dof1, 1, &dof2, &elementMatrices.second(2 * (i + n), 2 * j), ADD_VALUES);
+                            //         }
+                            //         if (fabs(elementMatrices.second(2 * (i + n), 2 * j + 1)) >= 1.e-15)
+                            //         {
+                            //             int dof1 = 2 * indexNodes(i + n);
+                            //             int dof2 = 2 * indexNodes(j) + 1;
+                            //             ierr = MatSetValues(A, 1, &dof1, 1, &dof2, &elementMatrices.second(2 * (i + n), 2 * j + 1), ADD_VALUES);
+                            //         }
+                            //         if (fabs(elementMatrices.second(2 * (i + n) + 1, 2 * j)) >= 1.e-15)
+                            //         {
+                            //             int dof1 = 2 * indexNodes(i + n) + 1;
+                            //             int dof2 = 2 * indexNodes(j);
+                            //             ierr = MatSetValues(A, 1, &dof1, 1, &dof2, &elementMatrices.second(2 * (i + n) + 1, 2 * j), ADD_VALUES);
+                            //         }
+                            //         if (fabs(elementMatrices.second(2 * (i + n) + 1, 2 * j + 1)) >= 1.e-15)
+                            //         {
+                            //             int dof1 = 2 * indexNodes(i + n) + 1;
+                            //             int dof2 = 2 * indexNodes(j) + 1;
+                            //             ierr = MatSetValues(A, 1, &dof1, 1, &dof2, &elementMatrices.second(2 * (i + n) + 1, 2 * j + 1), ADD_VALUES);
+                            //         }
+                            //         //Quarto quadrante
+                            //         if (fabs(elementMatrices.second(2 * (i + n), 2 * (j + n))) >= 1.e-15)
+                            //         {
+                            //             int dof1 = 2 * indexNodes(i + n);
+                            //             int dof2 = 2 * indexNodes(j + n);
+                            //             ierr = MatSetValues(A, 1, &dof1, 1, &dof2, &elementMatrices.second(2 * (i + n), 2 * (j + n)), ADD_VALUES);
+                            //         }
+                            //         if (fabs(elementMatrices.second(2 * (i + n), 2 * (j + n) + 1)) >= 1.e-15)
+                            //         {
+                            //             int dof1 = 2 * indexNodes(i + n);
+                            //             int dof2 = 2 * indexNodes(j + n) + 1;
+                            //             ierr = MatSetValues(A, 1, &dof1, 1, &dof2, &elementMatrices.second(2 * (i + n), 2 * (j + n) + 1), ADD_VALUES);
+                            //         }
+                            //         if (fabs(elementMatrices.second(2 * (i + n) + 1, 2 * (j + n))) >= 1.e-15)
+                            //         {
+                            //             int dof1 = 2 * indexNodes(i + n) + 1;
+                            //             int dof2 = 2 * indexNodes(j + n);
+                            //             ierr = MatSetValues(A, 1, &dof1, 1, &dof2, &elementMatrices.second(2 * (i + n) + 1, 2 * (j + n)), ADD_VALUES);
+                            //         }
+                            //         if (fabs(elementMatrices.second(2 * (i + n) + 1, 2 * (j + n) + 1)) >= 1.e-15)
+                            //         {
+                            //             int dof1 = 2 * indexNodes(i + n) + 1;
+                            //             int dof2 = 2 * indexNodes(j + n) + 1;
+                            //             ierr = MatSetValues(A, 1, &dof1, 1, &dof2, &elementMatrices.second(2 * (i + n) + 1, 2 * (j + n) + 1), ADD_VALUES);
+                            //         }
+                            //     }
+                            // }

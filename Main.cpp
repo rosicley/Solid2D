@@ -15,11 +15,12 @@ int main(int argc, char **args)
     MPI_Comm_size(PETSC_COMM_WORLD, &size);
 
     Solid *problem = new Solid;
+
     //ANTES DE LER OS ELEMENTOS
-    problem->setDynamicAnalysisParameters(0.0001, 0.25, 0.5);
+    problem->setDynamicAnalysisParameters(4.0, 0.25, 0.5);
 
     //ESTADO PLANO, TIPO DE ELEMENTO, NÚMEROS DE PONTOS DE HAMMER
-    problem->setAnalysisParameters("EPD", "T6", 7);
+    problem->setAnalysisParameters("EPT", "T6", 7);
 
     //LENDO ARQUIVO
     problem->readAnsysInput("cplusplus.txt");
@@ -34,10 +35,10 @@ int main(int argc, char **args)
     }
 
     //RESOLVER PROBLEMA ESTÁTICO
-    //problem->solveStaticProblem(20, 10, 1.0e-07);
+    problem->solveStaticProblem(10, 20, 1.0e-06);
    
     //RESOLVER PROBLEMA DINÂMICO
-    problem->solveDynamicProblem(500, 10, 1.0e-07);
+    //problem->solveDynamicProblem(500, 10, 1.0e-07);
 
     boost::posix_time::ptime end =
         boost::posix_time::microsec_clock::local_time();
