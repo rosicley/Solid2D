@@ -35,7 +35,7 @@ int main(int argc, char **args)
     }
 
     //RESOLVER PROBLEMA ESTÁTICO
-    problem->solveStaticProblem(10, 20, 1.0e-06);
+    problem->solveStaticProblem(1, 20, 1.0e-06);
    
     //RESOLVER PROBLEMA DINÂMICO
     //problem->solveDynamicProblem(500, 10, 1.0e-07);

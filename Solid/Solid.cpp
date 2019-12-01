@@ -1152,7 +1152,7 @@ void Solid::incidenceOfFibers()
                 double erro = 1.0;
                 int contador = 0;
 
-                while ((erro >= 0.0000001) && (contador <= 20))
+                while ((erro >= 0.000001) && (contador <= 20))
                 {
                     double ksi = auxsol(0);
                     double eta = auxsol(1);
@@ -1211,6 +1211,7 @@ void Solid::incidenceOfFibers()
         boost::posix_time::time_duration diff = t2 - t1;
         std::cout << "INCIDENCIA DAS FIBRAS NO SÓLIDO EM " << std::fixed
                   << diff.total_milliseconds() / 1000. << "SEGUNDOS " << std::endl;
+        std::cout << "O NÚMERO DE FIBRAS DENTRO DO SÓLIDO É " << fiberInsideSolid_.size() << std::endl;
     }
 }
 
