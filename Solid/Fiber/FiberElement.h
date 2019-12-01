@@ -26,6 +26,8 @@ public:
 
     std::pair<vector<double>, matrix<double>> fiberLocalContributions(const std::string &typeAnalyze, const double &deltat, const double &beta);
 
+    bounded_matrix<double, 4, 4> localMassMatrix();
+
     void updateNormalForce();
 
 private:

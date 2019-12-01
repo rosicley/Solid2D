@@ -193,8 +193,6 @@ int Solid::solveStaticProblem(const int &numberOfSteps, const int &maximumOfIter
 
     MPI_Comm_rank(PETSC_COMM_WORLD, &rank);
 
-    // vector<double> externalForces(2 * nodes_.size(), 0.0);
-    // externalForces = ExternalForces();
     int n = (order_ + 1) * (order_ + 2) / 2.0;
 
     if (rank == 0)
@@ -236,7 +234,7 @@ int Solid::solveStaticProblem(const int &numberOfSteps, const int &maximumOfIter
             //Create PETSc sparse parallel matrix
             ierr = MatCreateAIJ(PETSC_COMM_WORLD, PETSC_DECIDE, PETSC_DECIDE,
                                 2 * nodes_.size(), 2 * nodes_.size(),
-                                100, NULL, 300, NULL, &A);
+                                1000, NULL, 3000, NULL, &A);
             CHKERRQ(ierr);
 
             ierr = MatGetOwnershipRange(A, &Istart, &Iend);
@@ -253,7 +251,6 @@ int Solid::solveStaticProblem(const int &numberOfSteps, const int &maximumOfIter
             CHKERRQ(ierr);
             ierr = VecDuplicate(b, &All);
             CHKERRQ(ierr);
-
             if (rank == 0)
             {
                 for (NeumannCondition *con : neumannConditions_)
@@ -264,20 +261,6 @@ int Solid::solveStaticProblem(const int &numberOfSteps, const int &maximumOfIter
                     int dof = 2 * ind + dir;
                     ierr = VecSetValues(b, 1, &dof, &val1, ADD_VALUES);
                 }
-                // externalForces = ((1.0 * loadStep) / (1.0 * numberOfSteps)) * externalForces;
-                // for (size_t i = 0; i < nodes_.size(); i++)
-                // {
-                //     if (fabs(externalForces(2 * i)) >= 1.0e-15)
-                //     {
-                //         int dof = 2 * i;
-                //         ierr = VecSetValues(b, 1, &dof, &externalForces(2 * i), ADD_VALUES);
-                //     }
-                //     if (fabs(externalForces(2 * i + 1)) >= 1.0e-15)
-                //     {
-                //         int dof = 2 * i + 1;
-                //         ierr = VecSetValues(b, 1, &dof, &externalForces(2 * i + 1), ADD_VALUES);
-                //     }
-                // }
             }
 
             if (iteration == 0)
@@ -291,7 +274,6 @@ int Solid::solveStaticProblem(const int &numberOfSteps, const int &maximumOfIter
                     node->incrementCurrentCoordinate(dir, val1);
                 }
             }
-
             for (Element *el : elements_)
             {
                 if (elementPartition_[el->getIndex()] == rank)
@@ -342,7 +324,6 @@ int Solid::solveStaticProblem(const int &numberOfSteps, const int &maximumOfIter
                     }
                 }
             }
-
             if (fiberElements_.size() >= 1)
             {
                 for (FiberElement *fib : fiberElements_)
@@ -368,10 +349,6 @@ int Solid::solveStaticProblem(const int &numberOfSteps, const int &maximumOfIter
                                 indexNodes(2 * i + 1) = (elements_[indexSolidInitial]->getConnection()[i]->getIndex()) * 2 + 1;
                                 indexNodes(2 * (i + n)) = (elements_[indexSolidEnd]->getConnection()[i]->getIndex()) * 2;
                                 indexNodes(2 * (i + n) + 1) = (elements_[indexSolidEnd]->getConnection()[i]->getIndex()) * 2 + 1;
-                                // indexNodes(2 * i) = (elements_[indexSolidEnd]->getConnection()[i]->getIndex()) * 2;
-                                // indexNodes(2 * i + 1) = (elements_[indexSolidEnd]->getConnection()[i]->getIndex()) * 2 + 1;
-                                // indexNodes(2 * (i + n)) = (elements_[indexSolidInitial]->getConnection()[i]->getIndex()) * 2;
-                                // indexNodes(2 * (i + n) + 1) = (elements_[indexSolidInitial]->getConnection()[i]->getIndex()) * 2 + 1;
                             }
 
                             for (int i = 0; i < (4 * n); i++)
@@ -401,7 +378,6 @@ int Solid::solveStaticProblem(const int &numberOfSteps, const int &maximumOfIter
             CHKERRQ(ierr);
             ierr = MatAssemblyEnd(A, MAT_FINAL_ASSEMBLY);
             CHKERRQ(ierr);
-
             ierr = VecAssemblyBegin(b);
             CHKERRQ(ierr);
             ierr = VecAssemblyEnd(b);
@@ -868,6 +844,22 @@ void Solid::exportToParaview(const int &loadstep)
         for (FiberElement *fiber : fiberInsideSolid_)
         {
             file << fiberElementPartition_[fiber->getIndex()] << "\n";
+        }
+    }
+    file << "      </DataArray> "
+         << "\n";
+         file << "      <DataArray type=\"Float64\" NumberOfComponents=\"1\" "
+         << "Name=\"ElementType\" format=\"ascii\">" << std::endl;
+
+    for (Element *el : elements_)
+    {
+        file << 0 << "\n";
+    }
+    if (fiberInsideSolid_.size() >= 1)
+    {
+        for (FiberElement *fiber : fiberInsideSolid_)
+        {
+            file << 1 << "\n";
         }
     }
     file << "      </DataArray> "
@@ -1412,7 +1404,7 @@ int Solid::firstAccelerationCalculation()
     }
     ierr = MatCreateAIJ(PETSC_COMM_WORLD, PETSC_DECIDE, PETSC_DECIDE,
                         2 * nodes_.size(), 2 * nodes_.size(),
-                        100, NULL, 300, NULL, &A);
+                        1000, NULL, 3000, NULL, &A);
     CHKERRQ(ierr);
 
     ierr = MatGetOwnershipRange(A, &Istart, &Iend);
@@ -1504,6 +1496,76 @@ int Solid::firstAccelerationCalculation()
         }
     }
 
+    if (fiberElements_.size() >= 1)
+    {
+        for (FiberElement *fib : fiberElements_)
+        {
+            if (fiberElementPartition_[fib->getIndex()] == rank)
+            {
+
+                matrix<double> massFibers(4, 4, 0.0);
+                massFibers = fib->localMassMatrix();
+
+                FiberNode *initial = fib->getConnection()[0];
+                FiberNode *end = fib->getConnection()[1];
+
+                int indexSolidInitial = initial->getIndexSolidElement();
+                int indexSolidEnd = end->getIndexSolidElement();
+
+                if (indexSolidInitial >= 0 && indexSolidEnd >= 0)
+                {
+
+                    bounded_vector<double, 2> dimensionlessInitial = initial->getDimensionlessCoordinates();
+                    bounded_vector<double, 2> dimensionlessEnd = end->getDimensionlessCoordinates();
+
+                    vector<double> phi_inicial(n, 0.0);
+                    vector<double> phi_end(n, 0.0);
+
+                    phi_inicial = domainShapeFunction(dimensionlessInitial(0), dimensionlessInitial(1));
+                    phi_end = domainShapeFunction(dimensionlessEnd(0), dimensionlessEnd(1));
+
+                    matrix<double> mfibra(4 * n, 4, 0.0);
+
+                    for (int i = 0; i < n; i++)
+                    {
+                        mfibra(2 * i, 0) = phi_inicial(i);
+                        mfibra(2 * i + 1, 1) = phi_inicial(i);
+
+                        mfibra(2 * n + 2 * i, 2) = phi_end(i);
+                        mfibra(2 * n + 2 * i + 1, 3) = phi_end(i);
+                    }
+
+                    matrix<double> kfc(4 * n, 4 * n, 0.0);
+                    matrix<double> aux(4 * n, 4, 0.0);
+                    aux = prod(mfibra, massFibers);
+                    kfc = prod(aux, trans(mfibra));
+
+                    vector<int> indexNodes(4 * n, 0.0);
+                    for (int i = 0; i < n; i++)
+                    {
+                        indexNodes(2 * i) = (elements_[indexSolidInitial]->getConnection()[i]->getIndex()) * 2;
+                        indexNodes(2 * i + 1) = (elements_[indexSolidInitial]->getConnection()[i]->getIndex()) * 2 + 1;
+                        indexNodes(2 * (i + n)) = (elements_[indexSolidEnd]->getConnection()[i]->getIndex()) * 2;
+                        indexNodes(2 * (i + n) + 1) = (elements_[indexSolidEnd]->getConnection()[i]->getIndex()) * 2 + 1;
+                    }
+
+                    for (int i = 0; i < (4 * n); i++)
+                    {
+                        for (int j = 0; j < (4 * n); j++)
+                        {
+                            if (fabs(kfc(i, j)) >= 1.e-15)
+                            {
+                                int dof1 = indexNodes(i);
+                                int dof2 = indexNodes(j);
+                                ierr = MatSetValues(A, 1, &dof1, 1, &dof2, &kfc(i, j), ADD_VALUES);
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+
     //Assemble matrices and vectors
     ierr = MatAssemblyBegin(A, MAT_FINAL_ASSEMBLY);
     CHKERRQ(ierr);
@@ -1565,6 +1627,49 @@ int Solid::firstAccelerationCalculation()
         firstAccel(1) = val;
         nodes_[i]->setCurrentAcceleration(firstAccel);
         nodes_[i]->setPastAcceleration(firstAccel);
+    }
+
+    if (fiberElements_.size() >= 1)
+    {
+        for (FiberNode *fnode : fiberNodes_)
+        {
+
+            int indexSolidElement = fnode->getIndexSolidElement();
+            if (indexSolidElement != -1)
+            {
+                Element *solid = elements_[indexSolidElement];
+                bounded_vector<double, 2> dimensionless = fnode->getDimensionlessCoordinates();
+                vector<double> phi(n, 0.0);
+                phi = domainShapeFunction(dimensionless(0), dimensionless(1));
+                vector<double> correction_X1(n, 0.0);
+                vector<double> correction_X2(n, 0.0);
+
+                int auxiliar = 0;
+                for (Node *solidNode : solid->getConnection())
+                {
+                    Idof = 2 * solidNode->getIndex();
+                    ierr = VecGetValues(All, Ione, &Idof, &val);
+                    CHKERRQ(ierr);
+
+                    correction_X1(auxiliar) = val;
+
+                    Idof = 2 * solidNode->getIndex() + 1;
+                    ierr = VecGetValues(All, Ione, &Idof, &val);
+                    CHKERRQ(ierr);
+
+                    correction_X2(auxiliar) = val;
+
+                    auxiliar = auxiliar + 1;
+                }
+
+                bounded_vector<double, 2> firstAccel;
+                firstAccel(0) = inner_prod(phi, correction_X1);
+                firstAccel(1) = inner_prod(phi, correction_X2);
+
+                fnode->setCurrentAcceleration(firstAccel);
+                fnode->setPastAcceleration(firstAccel);
+            }
+        }
     }
 
     ierr = KSPDestroy(&ksp);
@@ -1643,7 +1748,7 @@ int Solid::solveDynamicProblem(const int &numberOfTimes, const int &maximumOfIte
             //Create PETSc sparse parallel matrix
             ierr = MatCreateAIJ(PETSC_COMM_WORLD, PETSC_DECIDE, PETSC_DECIDE,
                                 2 * nodes_.size(), 2 * nodes_.size(),
-                                100, NULL, 300, NULL, &A);
+                                1000, NULL, 3000, NULL, &A);
             CHKERRQ(ierr);
 
             ierr = MatGetOwnershipRange(A, &Istart, &Iend);
@@ -1724,116 +1829,54 @@ int Solid::solveDynamicProblem(const int &numberOfTimes, const int &maximumOfIte
                 }
             }
 
-            // if (fiberElements_.size() >= 1)
-            // {
-            //     for (FiberElement *fib : fiberElements_)
-            //     {
-            //         if (fiberElementPartition_[fib->getIndex()] == rank)
-            //         {
-            //             FiberNode *initial = fib->getConnection()[0];
-            //             FiberNode *end = fib->getConnection()[1];
+            if (fiberElements_.size() >= 1)
+            {
+                for (FiberElement *fib : fiberElements_)
+                {
+                    if (fiberElementPartition_[fib->getIndex()] == rank)
+                    {
+                        FiberNode *initial = fib->getConnection()[0];
+                        FiberNode *end = fib->getConnection()[1];
 
-            //             int indexSolidInitical = initial->getIndexSolidElement();
-            //             int indexSolidEnd = end->getIndexSolidElement();
+                        int indexSolidInitial = initial->getIndexSolidElement();
+                        int indexSolidEnd = end->getIndexSolidElement();
 
-            //             if (indexSolidInitical >= 0 && indexSolidEnd >= 0)
-            //             {
+                        if (indexSolidInitial >= 0 && indexSolidEnd >= 0)
+                        {
 
-            //                 std::pair<vector<double>, matrix<double>> elementMatrices;
-            //                 elementMatrices = fiberContribution("STATIC", fib);
-            //                 FiberNode *initial = fib->getConnection()[0];
-            //                 FiberNode *end = fib->getConnection()[1];
-            //                 int indexSolidInitical = initial->getIndexSolidElement();
-            //                 int indexSolidEnd = end->getIndexSolidElement();
+                            std::pair<vector<double>, matrix<double>> elementMatrices;
+                            elementMatrices = fiberContribution("DYNAMIC", fib);
 
-            //                 vector<int> indexNodes(2 * n);
-            //                 for (int i = 0; i < n; i++)
-            //                 {
-            //                     indexNodes(i) = elements_[indexSolidInitical]->getConnection()[i]->getIndex();
-            //                     indexNodes(i + n) = elements_[indexSolidEnd]->getConnection()[i]->getIndex();
-            //                 }
+                            vector<int> indexNodes(4 * n, 0.0);
+                            for (int i = 0; i < n; i++)
+                            {
+                                indexNodes(2 * i) = (elements_[indexSolidInitial]->getConnection()[i]->getIndex()) * 2;
+                                indexNodes(2 * i + 1) = (elements_[indexSolidInitial]->getConnection()[i]->getIndex()) * 2 + 1;
+                                indexNodes(2 * (i + n)) = (elements_[indexSolidEnd]->getConnection()[i]->getIndex()) * 2;
+                                indexNodes(2 * (i + n) + 1) = (elements_[indexSolidEnd]->getConnection()[i]->getIndex()) * 2 + 1;
+                            }
 
-            //                 for (size_t i = 0; i < n; i++)
-            //                 {
-            //                     if (fabs(elementMatrices.first(2 * i)) >= 1.0e-15)
-            //                     {
-            //                         int dof = 2 * indexNodes(i);
-            //                         ierr = VecSetValues(b, 1, &dof, &elementMatrices.first(2 * i), ADD_VALUES);
-            //                     }
-            //                     if (fabs(elementMatrices.first(2 * i + 1)) >= 1.0e-15)
-            //                     {
-            //                         int dof = 2 * indexNodes(i) + 1;
-            //                         ierr = VecSetValues(b, 1, &dof, &elementMatrices.first(2 * i + 1), ADD_VALUES);
-            //                     }
-
-            //                     if (fabs(elementMatrices.first(2 * (i + n))) >= 1.0e-15)
-            //                     {
-            //                         int dof = 2 * indexNodes(i + n);
-            //                         ierr = VecSetValues(b, 1, &dof, &elementMatrices.first(2 * (i + n)), ADD_VALUES);
-            //                     }
-            //                     if (fabs(elementMatrices.first(2 * (i + n) + 1)) >= 1.0e-15)
-            //                     {
-            //                         int dof = 2 * indexNodes(i + n) + 1;
-            //                         ierr = VecSetValues(b, 1, &dof, &elementMatrices.first(2 * (i + n) + 1), ADD_VALUES);
-            //                     }
-
-            //                     for (size_t j = 0; j < n; j++)
-            //                     {
-            //                         if (fabs(elementMatrices.second(2 * i, 2 * j)) >= 1.e-15)
-            //                         {
-            //                             int dof1 = 2 * indexNodes(i);
-            //                             int dof2 = 2 * indexNodes(j);
-            //                             ierr = MatSetValues(A, 1, &dof1, 1, &dof2, &elementMatrices.second(2 * i, 2 * j), ADD_VALUES);
-            //                         }
-            //                         if (fabs(elementMatrices.second(2 * i, 2 * j + 1)) >= 1.e-15)
-            //                         {
-            //                             int dof1 = 2 * indexNodes(i);
-            //                             int dof2 = 2 * indexNodes(j) + 1;
-            //                             ierr = MatSetValues(A, 1, &dof1, 1, &dof2, &elementMatrices.second(2 * i, 2 * j + 1), ADD_VALUES);
-            //                         }
-            //                         if (fabs(elementMatrices.second(2 * i + 1, 2 * j)) >= 1.e-15)
-            //                         {
-            //                             int dof1 = 2 * indexNodes(i) + 1;
-            //                             int dof2 = 2 * indexNodes(j);
-            //                             ierr = MatSetValues(A, 1, &dof1, 1, &dof2, &elementMatrices.second(2 * i + 1, 2 * j), ADD_VALUES);
-            //                         }
-            //                         if (fabs(elementMatrices.second(2 * i + 1, 2 * j + 1)) >= 1.e-15)
-            //                         {
-            //                             int dof1 = 2 * indexNodes(i) + 1;
-            //                             int dof2 = 2 * indexNodes(j) + 1;
-            //                             ierr = MatSetValues(A, 1, &dof1, 1, &dof2, &elementMatrices.second(2 * i + 1, 2 * j + 1), ADD_VALUES);
-            //                         }
-            //                         //segundo elemento
-            //                         if (fabs(elementMatrices.second(2 * (i + n), 2 * (j + n))) >= 1.e-15)
-            //                         {
-            //                             int dof1 = 2 * indexNodes(i + n);
-            //                             int dof2 = 2 * indexNodes(j + n);
-            //                             ierr = MatSetValues(A, 1, &dof1, 1, &dof2, &elementMatrices.second(2 * (i + n), 2 * (j + n)), ADD_VALUES);
-            //                         }
-            //                         if (fabs(elementMatrices.second(2 * (i + n), 2 * (j + n) + 1)) >= 1.e-15)
-            //                         {
-            //                             int dof1 = 2 * indexNodes(i + n);
-            //                             int dof2 = 2 * indexNodes(j + n) + 1;
-            //                             ierr = MatSetValues(A, 1, &dof1, 1, &dof2, &elementMatrices.second(2 * (i + n), 2 * (j + n) + 1), ADD_VALUES);
-            //                         }
-            //                         if (fabs(elementMatrices.second(2 * (i + n) + 1, 2 * (j + n))) >= 1.e-15)
-            //                         {
-            //                             int dof1 = 2 * indexNodes(i + n) + 1;
-            //                             int dof2 = 2 * indexNodes(j + n);
-            //                             ierr = MatSetValues(A, 1, &dof1, 1, &dof2, &elementMatrices.second(2 * (i + n) + 1, 2 * (j + n)), ADD_VALUES);
-            //                         }
-            //                         if (fabs(elementMatrices.second(2 * (i + n) + 1, 2 * (j + n) + 1)) >= 1.e-15)
-            //                         {
-            //                             int dof1 = 2 * indexNodes(i + n) + 1;
-            //                             int dof2 = 2 * indexNodes(j + n) + 1;
-            //                             ierr = MatSetValues(A, 1, &dof1, 1, &dof2, &elementMatrices.second(2 * (i + n) + 1, 2 * (j + n) + 1), ADD_VALUES);
-            //                         }
-            //                     }
-            //                 }
-            //             }
-            //         }
-            //     }
-            // }
+                            for (int i = 0; i < (4 * n); i++)
+                            {
+                                if (fabs(elementMatrices.first(i)) >= 1.0e-15)
+                                {
+                                    int dof = indexNodes(i);
+                                    ierr = VecSetValues(b, 1, &dof, &elementMatrices.first(i), ADD_VALUES);
+                                }
+                                for (int j = 0; j < (4 * n); j++)
+                                {
+                                    if (fabs(elementMatrices.second(i, j)) >= 1.e-15)
+                                    {
+                                        int dof1 = indexNodes(i);
+                                        int dof2 = indexNodes(j);
+                                        ierr = MatSetValues(A, 1, &dof1, 1, &dof2, &elementMatrices.second(i, j), ADD_VALUES);
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
 
             //Assemble matrices and vectors
             ierr = MatAssemblyBegin(A, MAT_FINAL_ASSEMBLY);
@@ -1911,45 +1954,56 @@ int Solid::solveDynamicProblem(const int &numberOfTimes, const int &maximumOfIte
                 node->setCurrentVelocity(vel);
             }
 
-            // if (fiberInsideSolid_.size() >= 1)
-            // {
-            //     for (FiberElement *fiber : fiberInsideSolid_)
-            //     {
-            //         for (FiberNode *fnode : fiber->getConnection())
-            //         {
-            //             Element *solid = elements_[fnode->getIndexSolidElement()];
-            //             bounded_vector<double, 2> dimensionless = fnode->getDimensionlessCoordinates();
-            //             vector<double> phi(n, 0.0);
-            //             phi = domainShapeFunction(dimensionless(0), dimensionless(1));
-            //             vector<double> correction_X1(n, 0.0);
-            //             vector<double> correction_X2(n, 0.0);
+            if (fiberElements_.size() >= 1)
+            {
+                for (FiberNode *fnode : fiberNodes_)
+                {
 
-            //             int auxiliar = 0;
-            //             for (Node *solidNode : solid->getConnection())
-            //             {
-            //                 Idof = 2 * solidNode->getIndex();
-            //                 ierr = VecGetValues(All, Ione, &Idof, &val);
-            //                 CHKERRQ(ierr);
-            //                 correction_X1(auxiliar) = val;
+                    int indexSolidElement = fnode->getIndexSolidElement();
+                    if (indexSolidElement != -1)
+                    {
+                        Element *solid = elements_[indexSolidElement];
+                        bounded_vector<double, 2> dimensionless = fnode->getDimensionlessCoordinates();
+                        vector<double> phi(n, 0.0);
+                        phi = domainShapeFunction(dimensionless(0), dimensionless(1));
+                        vector<double> correction_X1(n, 0.0);
+                        vector<double> correction_X2(n, 0.0);
 
-            //                 Idof = 2 * solidNode->getIndex() + 1;
-            //                 ierr = VecGetValues(All, Ione, &Idof, &val);
-            //                 CHKERRQ(ierr);
+                        int auxiliar = 0;
+                        for (Node *solidNode : solid->getConnection())
+                        {
+                            Idof = 2 * solidNode->getIndex();
+                            ierr = VecGetValues(All, Ione, &Idof, &val);
+                            CHKERRQ(ierr);
 
-            //                 correction_X2(auxiliar) = val;
-            //                 auxiliar = auxiliar + 1;
-            //             }
+                            correction_X1(auxiliar) = val;
 
-            //             bounded_vector<double, 2> currentCoordinate;
-            //             currentCoordinate = fnode->getCurrentCoordinate();
-            //             currentCoordinate(0) = currentCoordinate(0) + inner_prod(phi, correction_X1);
-            //             currentCoordinate(1) = currentCoordinate(1) + inner_prod(phi, correction_X2);
+                            Idof = 2 * solidNode->getIndex() + 1;
+                            ierr = VecGetValues(All, Ione, &Idof, &val);
+                            CHKERRQ(ierr);
 
-            //             fnode->setCurrentCoordinate(currentCoordinate);
-            //         }
-            //         fiber->updateNormalForce();
-            //     }
-            // }
+                            correction_X2(auxiliar) = val;
+
+                            auxiliar = auxiliar + 1;
+                        }
+
+                        bounded_vector<double, 2> currentCoordinate;
+                        currentCoordinate = fnode->getCurrentCoordinate();
+                        currentCoordinate(0) = currentCoordinate(0) + inner_prod(phi, correction_X1);
+                        currentCoordinate(1) = currentCoordinate(1) + inner_prod(phi, correction_X2);
+
+                        fnode->setCurrentCoordinate(currentCoordinate);
+
+                        bounded_vector<double, 2> vel, accel;
+                        accel = fnode->getCurrentCoordinate() / (beta_ * deltat_ * deltat_) - fnode->getPastCoordinate() / (beta_ * deltat_ * deltat_) -
+                                fnode->getPastVelocity() / (beta_ * deltat_) - fnode->getPastAcceleration() * (0.5 / beta_ - 1.0);
+                        fnode->setCurrentAcceleration(accel);
+
+                        vel = gamma_ * deltat_ * fnode->getCurrentAcceleration() + fnode->getPastVelocity() + deltat_ * (1.0 - gamma_) * fnode->getPastAcceleration();
+                        fnode->setCurrentVelocity(vel);
+                    }
+                }
+            }
 
             boost::posix_time::ptime t2 =
                 boost::posix_time::microsec_clock::local_time();
@@ -1983,6 +2037,11 @@ int Solid::solveDynamicProblem(const int &numberOfTimes, const int &maximumOfIte
 
         if (rank == 0)
         {
+            for (FiberElement *fib : fiberInsideSolid_)
+            {
+                fib->updateNormalForce();
+            }
+
             for (Node *n : nodes_)
             {
                 n->setZeroStressState();
@@ -2004,7 +2063,18 @@ int Solid::solveDynamicProblem(const int &numberOfTimes, const int &maximumOfIte
             bounded_vector<double, 2> accel = node->getCurrentAcceleration();
             node->setPastAcceleration(accel);
         }
-
+        if (fiberElements_.size() >= 1)
+        {
+            for (FiberNode *fnode : fiberNodes_)
+            {
+                bounded_vector<double, 2> coordinate = fnode->getCurrentCoordinate();
+                fnode->setPastCoordinate(coordinate);
+                bounded_vector<double, 2> vel = fnode->getCurrentVelocity();
+                fnode->setPastVelocity(vel);
+                bounded_vector<double, 2> accel = fnode->getCurrentAcceleration();
+                fnode->setPastAcceleration(accel);
+            }
+        }
         for (Node *node : nodes_)
         {
             bounded_vector<double, 2> vel, accel;
@@ -2013,6 +2083,18 @@ int Solid::solveDynamicProblem(const int &numberOfTimes, const int &maximumOfIte
             node->setCurrentAcceleration(accel);
             vel = gamma_ * deltat_ * node->getCurrentAcceleration() + node->getPastVelocity() + deltat_ * (1.0 - gamma_) * node->getPastAcceleration();
             node->setCurrentVelocity(vel);
+        }
+        if (fiberElements_.size() >= 1)
+        {
+            for (FiberNode *fnode : fiberNodes_)
+            {
+                bounded_vector<double, 2> vel, accel;
+                accel = fnode->getCurrentCoordinate() / (beta_ * deltat_ * deltat_) - fnode->getPastCoordinate() / (beta_ * deltat_ * deltat_) -
+                        fnode->getPastVelocity() / (beta_ * deltat_) - fnode->getPastAcceleration() * (0.5 / beta_ - 1.0);
+                fnode->setCurrentAcceleration(accel);
+                vel = gamma_ * deltat_ * fnode->getCurrentAcceleration() + fnode->getPastVelocity() + deltat_ * (1.0 - gamma_) * fnode->getPastAcceleration();
+                fnode->setCurrentVelocity(vel);
+            }
         }
     }
     PetscFree(dof);

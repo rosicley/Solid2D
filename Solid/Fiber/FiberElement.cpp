@@ -126,3 +126,14 @@ void FiberElement::updateNormalForce()
     connection_[0]->setNormalForce(s*area_);
     connection_[1]->setNormalForce(s*area_);
 }
+
+bounded_matrix<double, 4, 4> FiberElement::localMassMatrix()
+{
+    identity_matrix<double> identity(4);
+    bounded_matrix<double, 4, 4> mass;
+    double partial = 0.5 * area_ * (material_->getDensity()) * initialLength_;
+
+    mass = partial * identity;
+
+    return mass;
+}

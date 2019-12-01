@@ -17,7 +17,7 @@ int main(int argc, char **args)
     Solid *problem = new Solid;
 
     //ANTES DE LER OS ELEMENTOS
-    problem->setDynamicAnalysisParameters(4.0, 0.25, 0.5);
+    problem->setDynamicAnalysisParameters(200.0, 0.25, 0.5);
 
     //ESTADO PLANO, TIPO DE ELEMENTO, NÚMEROS DE PONTOS DE HAMMER
     problem->setAnalysisParameters("EPT", "T6", 7);
@@ -35,7 +35,7 @@ int main(int argc, char **args)
     }
 
     //RESOLVER PROBLEMA ESTÁTICO
-    problem->solveStaticProblem(1, 20, 1.0e-06);
+    problem->solveStaticProblem(10, 20, 1.0e-06);
    
     //RESOLVER PROBLEMA DINÂMICO
     //problem->solveDynamicProblem(500, 10, 1.0e-07);
